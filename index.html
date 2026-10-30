@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="星空">
+<meta name="theme-color" content="#060912"><title>星空</title>
+<link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon.png"><link rel="stylesheet" href="style.css"></head>
+<body>
+<canvas id="sky"></canvas>
+<header id="bar">
+ <select id="city" aria-label="観測する都道府県"></select>
+ <input id="date" type="date" aria-label="日付"><input id="time" type="time" aria-label="時刻">
+ <button id="now">今</button><button id="play" aria-pressed="false">▶</button>
+</header>
+<aside id="card" hidden><button id="cardClose" aria-label="閉じる">×</button><h2 id="cName"></h2><p id="cSub"></p><dl id="cList"></dl><p id="cNote"></p></aside>
+<div id="toast" role="status"></div>
+<details id="panel"><summary>設定</summary><div class="body">
+ <label class="row">見える星の暗さ <output id="limOut"></output><input id="limit" type="range" min="1" max="7" step="0.1"></label>
+ <label class="row">日付をずらす(±半年) <input id="dayShift" type="range" min="-182" max="182" step="1" value="0"></label>
+ <label class="row speed-row">時間の進み具合 <output id="speedOut" for="speed"></output><input id="speed" type="range" min="0" max="100" step="1" value="34" aria-label="時間の進み具合"><span class="range-labels" aria-hidden="true"><span>1秒=1分</span><span>1秒=1日</span></span></label>
+ <div class="chips">
+  <label><input type="checkbox" id="tLines" checked>星座線</label><label><input type="checkbox" id="tCons" checked>星座名</label>
+  <label><input type="checkbox" id="tNames" checked>星の名前</label><label><input type="checkbox" id="tReal" checked>現実に近い色</label>
+ </div>
+ <div class="row latlon"><label>緯度<input id="lat" type="number" step="0.01"></label><label>経度<input id="lon" type="number" step="0.01"></label>
+  <button id="geo">現在地を使う</button></div>
+ <div class="row"><button id="ar">空にかざす(向きに連動)</button><button id="reset">設定を消去</button></div>
+ <p class="small">起動時は自動的に「いま」の空を表示します。場所・時刻・向きは端末内だけで計算し、どこにも送信しません。都道府県は県庁所在地付近を使います。収録は明るい約190星(約5等まで)。雲・建物は反映しません。</p>
+</div></details>
+<script src="data.js"></script><script src="app.js"></script>
+</body></html>
