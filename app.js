@@ -2,13 +2,15 @@
 'use strict';
 const D=Math.PI/180,$=id=>document.getElementById(id),cv=$('sky'),ctx=cv.getContext('2d');
 const KEY='hoshizora.v1',clamp=(x,a,b)=>Math.min(b,Math.max(a,x)),dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
-const AR_FOV=55,VER=2;/* 星との距離を近く: 通常の視野を110→80°、ジャイロ時を70→55°に */
-const def={lat:35.86,lon:139.65,city:'埼玉県（さいたま）',limit:5,lines:1,cons:1,names:0,real:1,az:180,alt:55,fov:80,arOff:0,speed:34,auto:1,gyro:1,ver:VER};
+const AR_FOV=55,VER=3;/* 星との距離を近く: 通常の視野を110→80°、ジャイロ時を70→55°に */
+const def={lat:35.86,lon:139.65,city:'埼玉県（さいたま）',limit:6.3,lines:1,cons:1,names:0,real:1,az:180,alt:55,fov:80,arOff:0,speed:34,auto:1,gyro:1,ver:VER};
 const PREFECTURES=['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
 CITIES.forEach((city,index)=>city[0]=`${PREFECTURES[index]}（${city[0]}）`);
 let S=Object.assign({},def),stored={};try{stored=JSON.parse(localStorage.getItem(KEY)||'{}')||{};Object.assign(S,stored)}catch(e){stored={}}
 /* 以前の版で保存された設定には、新しい初期値(星の名前オフ・近い視野・ジャイロオン)を一度だけ適用する */
-if((stored.ver||1)<VER){S.names=def.names;S.fov=def.fov;S.gyro=def.gyro;S.ver=VER}
+if((stored.ver||1)<2){S.names=def.names;S.fov=def.fov;S.gyro=def.gyro}
+if((stored.ver||1)<3)S.limit=def.limit;
+S.ver=VER;
 if(!CITIES.some(city=>city[0]===S.city)){const old=CITIES.find(city=>city[0].endsWith(`（${S.city}）`));S.city=old?old[0]:def.city}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 let T=Date.now(),baseT=T,playing=false,last=0,ar=false,W=0,H=0,V={},hits=[],sel=null,selCon=null,dirty=false,starting=false;
@@ -19,7 +21,7 @@ const FAMOUS=new Set(['Sirius','Canopus','Arcturus','Rigil Kent','Vega','Capella
 const byKey={};stars.forEach(s=>byKey[s.k]=s);
 const conStars={};for(const c in CONS){const set=new Set();CONS[c][1].forEach(p=>p.forEach(k=>set.add(k)));conStars[c]=[...set].map(k=>byKey[k]).filter(Boolean)}
 for(const c in CONS)CONS[c][1].forEach(p=>p.forEach(k=>{if(byKey[k])byKey[k].ln=1}));
-fetch('data/stars_extra.json').then(r=>r.ok?r.json():[]).then(a=>{a.forEach(r=>stars.push({k:null,ra:r[0]*15,dec:r[1],mag:r[2],bv:r[3]||0.5,con:''}));need()}).catch(()=>{});
+(window.STAR_EXTRA||[]).forEach(r=>stars.push({k:null,ra:r[0]*15,dec:r[1],mag:r[2],bv:r[3],con:''}));
 
 /* ---------- 天文計算 ---------- */
 const jd=t=>t/86400000+2440587.5;
