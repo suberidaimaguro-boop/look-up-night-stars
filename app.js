@@ -2,13 +2,16 @@
 'use strict';
 const D=Math.PI/180,$=id=>document.getElementById(id),cv=$('sky'),ctx=cv.getContext('2d');
 const KEY='hoshizora.v1',clamp=(x,a,b)=>Math.min(b,Math.max(a,x)),dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
-const def={lat:35.86,lon:139.65,city:'埼玉県（さいたま）',limit:5,lines:1,cons:1,names:1,real:1,az:180,alt:55,fov:110,arOff:0,speed:34,auto:1};
+const AR_FOV=55,VER=2;/* 星との距離を近く: 通常の視野を110→80°、ジャイロ時を70→55°に */
+const def={lat:35.86,lon:139.65,city:'埼玉県（さいたま）',limit:5,lines:1,cons:1,names:0,real:1,az:180,alt:55,fov:80,arOff:0,speed:34,auto:1,gyro:1,ver:VER};
 const PREFECTURES=['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
 CITIES.forEach((city,index)=>city[0]=`${PREFECTURES[index]}（${city[0]}）`);
-let S=Object.assign({},def);try{Object.assign(S,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
+let S=Object.assign({},def),stored={};try{stored=JSON.parse(localStorage.getItem(KEY)||'{}')||{};Object.assign(S,stored)}catch(e){stored={}}
+/* 以前の版で保存された設定には、新しい初期値(星の名前オフ・近い視野・ジャイロオン)を一度だけ適用する */
+if((stored.ver||1)<VER){S.names=def.names;S.fov=def.fov;S.gyro=def.gyro;S.ver=VER}
 if(!CITIES.some(city=>city[0]===S.city)){const old=CITIES.find(city=>city[0].endsWith(`（${S.city}）`));S.city=old?old[0]:def.city}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
-let T=Date.now(),baseT=T,playing=false,last=0,ar=false,W=0,H=0,V={},hits=[],sel=null,selCon=null,dirty=false;
+let T=Date.now(),baseT=T,playing=false,last=0,ar=false,W=0,H=0,V={},hits=[],sel=null,selCon=null,dirty=false,starting=false;
 
 /* ---------- 星表 ---------- */
 const stars=STAR_DATA.map(r=>({k:r[0],ra:r[1]*15,dec:r[2],mag:r[3],bv:r[4],con:r[5]}));
@@ -155,19 +158,34 @@ function speedSeconds(){return Math.round(60*Math.pow(1440,(+speed.value)/100))}
 function showSpeed(){const seconds=speedSeconds();speedOut.textContent=seconds<3600?`1秒 = 約${Math.max(1,Math.round(seconds/60))}分`:`1秒 = 約${Math.round(seconds/3600*10)/10}時間`;S.speed=+speed.value}
 speed.value=S.speed??def.speed;showSpeed();speed.oninput=()=>{showSpeed();save()};
 [['tLines','lines'],['tCons','cons'],['tNames','names'],['tReal','real'],['tAuto','auto']].forEach(([id,k])=>{const el=$(id);el.checked=!!S[k];el.onchange=()=>{S[k]=el.checked?1:0;save();need()}});
-$('reset').onclick=()=>{try{localStorage.removeItem(KEY)}catch(e){}S=Object.assign({},def);lim.value=S.limit;limShow();speed.value=S.speed;showSpeed();setLoc(S.lat,S.lon,S.city);['tLines','tCons','tNames','tReal','tAuto'].forEach(i=>$(i).checked=true);armIdle();toast('保存した設定を消去しました')};
+$('reset').onclick=()=>{try{localStorage.removeItem(KEY)}catch(e){}S=Object.assign({},def);lim.value=S.limit;limShow();speed.value=S.speed;showSpeed();setLoc(S.lat,S.lon,S.city);[['tLines','lines'],['tCons','cons'],['tNames','names'],['tReal','real'],['tAuto','auto']].forEach(([i,k])=>$(i).checked=!!S[k]);armIdle();startAR('quiet');toast('保存した設定を消去しました')};
 let tt;function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2600)}
 
-/* ---------- 空にかざす ---------- */
+/* ---------- ジャイロ(スマホの向きに連動) ---------- */
 let hd=null;
 function onOri(e){let h=e.webkitCompassHeading;if(h==null&&e.alpha!=null)h=(360-e.alpha)%360;if(h==null||e.beta==null)return;
  hd=hd==null?h:hd+((((h-hd)%360)+540)%360-180)*0.25;S.az=((hd+S.arOff)%360+360)%360;S.alt=clamp(e.beta-90,-30,90)}
-$('ar').onclick=async e=>{
- if(ar){ar=false;removeEventListener('deviceorientation',onOri);e.target.textContent='空にかざす(向きに連動)';e.target.setAttribute('aria-pressed',false);setImmersive(false);need();return}
- try{if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'){if(await DeviceOrientationEvent.requestPermission()!=='granted')return toast('「モーションと方向」が許可されませんでした')}}catch(x){return toast('向きセンサーを使えませんでした')}
- if(!('DeviceOrientationEvent' in window))return toast('この端末は向きセンサーに対応していません');
- ar=true;hd=null;S.fov=70;addEventListener('deviceorientation',onOri);e.target.textContent='かざす表示を終了';e.target.setAttribute('aria-pressed',true);
- setImmersive(true);toast('スマホを空に向けてください。方位がずれる時は画面を左右にドラッグして補正できます。空をタップすると操作画面が戻ります');requestAnimationFrame(frame)};
+const arBtn=$('ar'),needPerm=typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function';
+function arUi(on){arBtn.textContent=on?'ジャイロをオフにする':'ジャイロ(向きに連動)をオンにする';arBtn.setAttribute('aria-pressed',on)}
+function beginAR(mode){ar=true;hd=null;S.fov=AR_FOV;addEventListener('deviceorientation',onOri);arUi(true);
+ if(mode==='button'){setImmersive(true);toast('スマホを空に向けてください。方位がずれる時は画面を左右にドラッグして補正できます。空をタップすると操作画面が戻ります')}
+ else if(mode==='tap')toast('ジャイロがオンになりました。スマホを空に向けてください');
+ requestAnimationFrame(frame)}
+function stopAR(persist){if(!ar)return;ar=false;removeEventListener('deviceorientation',onOri);arUi(false);if(persist){S.gyro=0;save()}if(persist)setImmersive(false);need()}
+/* mode: 'button'(ボタン操作) / 'tap'(起動後の最初のタップ) / 'quiet'(通知なし) */
+async function startAR(mode){if(ar||starting)return;starting=true;
+ try{if(needPerm){try{if(await DeviceOrientationEvent.requestPermission()!=='granted'){toast('「モーションと方向」が許可されませんでした');return}}catch(x){toast('向きセンサーを使えませんでした');return}}
+  if(!('DeviceOrientationEvent' in window)){toast('この端末は向きセンサーに対応していません');return}
+  if(mode==='button'){S.gyro=1;save()}
+  beginAR(mode)}finally{starting=false}}
+arBtn.onclick=()=>{if(ar)stopAR(true);else startAR('button')};
+/* 起動時の自動オン。iPhoneは許可の確認に画面の操作が必要なので、最初のタップで始める。
+   Androidなどは、実際にセンサーの値が届いたときだけオンにする(PCではオンにならない) */
+function autoGyro(){if(!S.gyro)return;
+ if(needPerm){toast('画面をタップすると、ジャイロ(向き連動)が始まります');document.addEventListener('click',()=>{if(S.gyro&&!ar)startAR('tap')},{capture:true,once:true});return}
+ if(!('DeviceOrientationEvent' in window))return;let pt;
+ const probe=e=>{if(e.beta!=null&&(e.alpha!=null||e.webkitCompassHeading!=null)){removeEventListener('deviceorientation',probe);clearTimeout(pt);if(S.gyro&&!ar)beginAR('quiet')}};
+ addEventListener('deviceorientation',probe);pt=setTimeout(()=>removeEventListener('deviceorientation',probe),4000)}
 
 /* ---------- 星座の一覧・神話 ---------- */
 const MYTH=window.MYTH||{},MODERN=new Set(window.MODERN||[]),conGeo={};let conFilter='all';
@@ -183,7 +201,7 @@ function conState(c){const a=conAt(c,T);if(a.alt<3)return {k:'below',a};return {
 function stateText(st){return st.k==='up'?`いま見えています(${dirName(st.a.az)}の空・高度${Math.round(st.a.alt)}°ごろ)`:st.k==='bright'?'いまは空が明るく、星は見えにくい時間です':'いまは地平線の下にあります'}
 function findVisible(c){for(const thr of [20,8])for(let k=1;k<=366*48;k++){const t=T+k*18e5;if(sunAltAt(t)>-12)continue;let ba=conAt(c,t).alt;if(ba<thr)continue;
   let best=t;for(let j=1;j<=16;j++){const u=t+j*9e5;if(sunAltAt(u)>-12)break;const a=conAt(c,u).alt;if(a>ba){ba=a;best=u}}return best}return null}
-function lookAt(c){if(ar)$('ar').click();const a=conAt(c,T);S.az=(a.az+360)%360;S.fov=clamp(geo(c).rad*2.6,45,120);setView();
+function lookAt(c){stopAR(false);const a=conAt(c,T);S.az=(a.az+360)%360;S.fov=clamp(geo(c).rad*2.6,45,120);setView();
  /* 神話カードが画面の下側をおおうので、星座が見える上側の中央にくるよう視線を下げる */
  const m=$('myth'),side=!m.hidden&&matchMedia('(orientation:landscape) and (max-height:520px)').matches;
  if(side){/* 横向き: カードが左側にあるので、星座が右側の中央にくるよう視線を左へ回す */
@@ -232,7 +250,7 @@ $('tAuto').addEventListener('change',armIdle);
 ['pointerdown','keydown','input','change','wheel'].forEach(t=>addEventListener(t,()=>{if(t==='keydown'&&isImm())setImmersive(false);else armIdle()},true));
 
 /* ---------- 起動 ---------- */
-setLoc(S.lat,S.lon,S.city);syncTime();addEventListener('resize',need);armIdle();
+setLoc(S.lat,S.lon,S.city);syncTime();addEventListener('resize',need);armIdle();autoGyro();
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 need();
 })();
