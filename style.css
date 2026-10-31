@@ -16,6 +16,31 @@ button{cursor:pointer}button:active,button[aria-pressed=true]{background:var(--a
 #card{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 64px);max-width:380px;background:#0d1428f2;border:1px solid var(--line);border-left:3px solid var(--acc);border-radius:10px;padding:12px 14px}
 #card h2{margin:0;font-size:20px}#card p{margin:2px 0;color:var(--dim)}#card dl{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;margin:8px 0}#card dt{color:var(--dim)}#card dd{margin:0}
 #cardClose{position:absolute;right:6px;top:6px;border:0;background:none;font-size:22px;min-height:0}
-#toast{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:#0d1428f2;border:1px solid var(--line);padding:10px 14px;border-radius:8px;opacity:0;pointer-events:none;transition:opacity .25s;max-width:80vw;text-align:center}
+#toast{z-index:40;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:#0d1428f2;border:1px solid var(--line);padding:10px 14px;border-radius:8px;opacity:0;pointer-events:none;transition:opacity .25s;max-width:80vw;text-align:center}
 #toast.on{opacity:1}
 @media(prefers-reduced-motion:reduce){#toast{transition:none}}
+[hidden]{display:none!important}
+#myth{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 54px);max-width:520px;max-height:46vh;overflow:auto;z-index:10;background:#0d1428f5;border:1px solid var(--line);border-left:3px solid var(--acc);border-radius:10px;padding:12px 40px 12px 14px;-webkit-user-select:text;user-select:text}
+#myth h2{margin:0;font-size:20px}#myth p{margin:4px 0}#mSub{color:var(--dim);font-size:12px}
+#mText{font-size:14px;line-height:1.75;margin:8px 0!important}#mState{color:var(--acc);font-size:13px}
+#mythClose{position:absolute;right:6px;top:6px;border:0;background:none;font-size:22px;min-height:0}
+.mbtns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+#conSheet{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;flex-direction:column;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 10px) 12px calc(env(safe-area-inset-bottom,0px) + 10px)}
+.sheetHead{display:flex;justify-content:space-between;align-items:center}.sheetHead h2{margin:0;font-size:18px}
+#conSheetClose{border:0;background:none;font-size:26px;min-height:40px;min-width:40px}
+#conQ{width:100%;-webkit-user-select:text;user-select:text}
+.fchips{display:flex;gap:6px;flex-wrap:wrap}.fchips button{border-radius:999px;padding:4px 12px;min-height:34px}
+#conUl{list-style:none;margin:0;padding:0 0 8px;overflow:auto;flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:8px;align-content:start;-webkit-overflow-scrolling:touch}
+#conUl button{width:100%;text-align:left;display:flex;flex-direction:column;gap:2px;padding:8px 10px;min-height:54px}
+#conUl .cn{font-weight:600}#conUl .cm{font-size:11px;color:var(--dim)}#conUl .cm.on{color:var(--acc)}
+#conUl button:active .cm{color:#1a1405}#conUl .empty{color:var(--dim);grid-column:1/-1;padding:12px 4px}
+@media (orientation:landscape) and (max-height:520px){
+#myth{top:calc(env(safe-area-inset-top,0px) + 96px);bottom:calc(env(safe-area-inset-bottom,0px) + 54px);right:auto;width:min(46vw,420px);max-height:none}
+}
+/* 没入モード */
+#bar,#panel{transition:opacity .4s ease,visibility 0s}
+body.immersive #bar,body.immersive #panel{opacity:0;visibility:hidden;transition:opacity .4s ease,visibility 0s .4s}
+#uiShow{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 4px);transform:translateX(-50%);z-index:6;width:72px;min-height:44px;padding:0;border:0;background:none}
+#uiShow::before{content:"";position:absolute;left:16px;right:16px;bottom:10px;height:4px;border-radius:2px;background:var(--ink);opacity:.3}
+#uiShow:active{background:none;border:0}
+@media(prefers-reduced-motion:reduce){#bar,#panel,body.immersive #bar,body.immersive #panel{transition:none}}
