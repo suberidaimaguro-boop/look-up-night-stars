@@ -2,19 +2,20 @@
 'use strict';
 const D=Math.PI/180,$=id=>document.getElementById(id),cv=$('sky'),ctx=cv.getContext('2d');
 const KEY='hoshizora.v1',clamp=(x,a,b)=>Math.min(b,Math.max(a,x)),dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
-const def={lat:35.86,lon:139.65,city:'埼玉県（さいたま）',limit:5,lines:1,cons:1,names:1,real:1,az:180,alt:55,fov:110,arOff:0,speed:34};
+const def={lat:35.86,lon:139.65,city:'埼玉県（さいたま）',limit:5,lines:1,cons:1,names:1,real:1,az:180,alt:55,fov:110,arOff:0,speed:34,auto:1};
 const PREFECTURES=['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
 CITIES.forEach((city,index)=>city[0]=`${PREFECTURES[index]}（${city[0]}）`);
 let S=Object.assign({},def);try{Object.assign(S,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
 if(!CITIES.some(city=>city[0]===S.city)){const old=CITIES.find(city=>city[0].endsWith(`（${S.city}）`));S.city=old?old[0]:def.city}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
-let T=Date.now(),baseT=T,playing=false,last=0,ar=false,W=0,H=0,V={},hits=[],sel=null,dirty=true;
+let T=Date.now(),baseT=T,playing=false,last=0,ar=false,W=0,H=0,V={},hits=[],sel=null,selCon=null,dirty=false;
 
 /* ---------- 星表 ---------- */
 const stars=STAR_DATA.map(r=>({k:r[0],ra:r[1]*15,dec:r[2],mag:r[3],bv:r[4],con:r[5]}));
 const FAMOUS=new Set(['Sirius','Canopus','Arcturus','Rigil Kent','Vega','Capella','Rigel','Procyon','Betelgeuse','Achernar','Altair','Aldebaran','Antares','Spica','Pollux','Fomalhaut','Deneb','Regulus','Castor','Polaris','Acrux','Dubhe','Algol','Alnilam','Bellatrix','Denebola','Mizar','Shaula']);
 const byKey={};stars.forEach(s=>byKey[s.k]=s);
 const conStars={};for(const c in CONS){const set=new Set();CONS[c][1].forEach(p=>p.forEach(k=>set.add(k)));conStars[c]=[...set].map(k=>byKey[k]).filter(Boolean)}
+for(const c in CONS)CONS[c][1].forEach(p=>p.forEach(k=>{if(byKey[k])byKey[k].ln=1}));
 fetch('data/stars_extra.json').then(r=>r.ok?r.json():[]).then(a=>{a.forEach(r=>stars.push({k:null,ra:r[0]*15,dec:r[1],mag:r[2],bv:r[3]||0.5,con:''}));need()}).catch(()=>{});
 
 /* ---------- 天文計算 ---------- */
@@ -70,9 +71,12 @@ function draw(){dirty=false;const dpr=window.devicePixelRatio||1;
  // 星座線
  if(S.lines){ctx.strokeStyle=`rgba(${mix([110,150,205],[255,255,255],dy)},${0.5+0.1*dy})`;ctx.lineWidth=1;ctx.beginPath();
   for(const c in CONS)for(const [a,b] of CONS[c][1]){const A=byKey[a],B=byKey[b];if(!A||!B||!A.v||!B.v)continue;const p=proj(A.az,A.alt),q=proj(B.az,B.alt);if(p&&q){ctx.moveTo(p[0],p[1]);ctx.lineTo(q[0],q[1])}}ctx.stroke()}
+ // 選択中の星座の線
+ if(selCon&&CONS[selCon]){ctx.strokeStyle='rgba(232,180,90,.95)';ctx.lineWidth=2.2;ctx.beginPath();
+  for(const [a,b] of CONS[selCon][1]){const A=byKey[a],B=byKey[b];if(!A||!B||!A.v||!B.v)continue;const p=proj(A.az,A.alt),q=proj(B.az,B.alt);if(p&&q){ctx.moveTo(p[0],p[1]);ctx.lineTo(q[0],q[1])}}ctx.stroke();ctx.lineWidth=1}
  // 星
  const nm=2.4+(110/S.fov-1)*0.9;
- for(const s of stars){if(!s.v||s.mag>eff)continue;const p=proj(s.az,s.alt);if(!p||p[0]<-20||p[0]>W+20||p[1]<-20||p[1]>H+20)continue;
+ for(const s of stars){if(!s.v||s.mag>eff+(s.ln?1:0))continue;const p=proj(s.az,s.alt);if(!p||p[0]<-20||p[0]>W+20||p[1]<-20||p[1]>H+20)continue;
   const r=Math.max(0.7,3.0*Math.pow(10,-0.11*s.mag)*V.z),al=clamp((eff-s.mag)/1.2+0.25,0.25,1)*(s.mag>eff-1.5?0.85:1),c=starColor(s);
   ctx.fillStyle=`rgba(${c},${al})`;if(s.mag<2.5){ctx.shadowColor=`rgba(${c},.9)`;ctx.shadowBlur=r*3}ctx.beginPath();ctx.arc(p[0],p[1],r,0,6.283);ctx.fill();ctx.shadowBlur=0;
   if(s.k)hits.push({x:p[0],y:p[1],s});}
@@ -84,8 +88,8 @@ function draw(){dirty=false;const dpr=window.devicePixelRatio||1;
    ctx.fillStyle='rgba(240,236,224,.95)';ctx.fillText((JA[s.k]||s.k).replace(/\(.*\)/,''),p[0]+r+5,p[1]-r-2)}
   ctx.shadowBlur=0;ctx.textBaseline='alphabetic'}
  // 星座名
- if(S.cons){ctx.font='13px sans-serif';ctx.textAlign='center';ctx.shadowColor='rgba(0,0,0,.6)';ctx.shadowBlur=3;ctx.fillStyle=`rgb(${mix([232,180,90],[255,240,190],dy)})`;
-  for(const c in CONS){const L2=conStars[c];if(!L2.length)continue;let x=0,y=0,z=0,m=0;for(const s of L2)if(s.v){x+=Math.cos(s.alt)*Math.sin(s.az);y+=Math.cos(s.alt)*Math.cos(s.az);z+=Math.sin(s.alt);m++}
+ if(S.cons||selCon){ctx.font='13px sans-serif';ctx.textAlign='center';ctx.shadowColor='rgba(0,0,0,.6)';ctx.shadowBlur=3;ctx.fillStyle=`rgb(${mix([232,180,90],[255,240,190],dy)})`;
+  for(const c in CONS){const L2=conStars[c];if(!L2.length||(!S.cons&&c!==selCon))continue;let x=0,y=0,z=0,m=0;for(const s of L2)if(s.v){x+=Math.cos(s.alt)*Math.sin(s.az);y+=Math.cos(s.alt)*Math.cos(s.az);z+=Math.sin(s.alt);m++}
    if(m<L2.length*0.6)continue;const az=(Math.atan2(x,y)+2*Math.PI)%(2*Math.PI),al=Math.atan2(z,Math.hypot(x,y)),p=proj(az,al);if(p)ctx.fillText(CONS[c][0],p[0],p[1]+16)}ctx.shadowBlur=0}
  // 太陽・月
  if(sh[1]>-0.05){const p=proj(sh[0],sh[1]);if(p){ctx.shadowColor='#ffd27a';ctx.shadowBlur=30;ctx.fillStyle='#ffe9a8';ctx.beginPath();ctx.arc(p[0],p[1],9*V.z,0,6.283);ctx.fill();ctx.shadowBlur=0}}
@@ -101,10 +105,16 @@ function frame(now){if(playing){const dt=Math.min(now-(last||now),100);last=now;
  draw();if(playing||ar){requestAnimationFrame(frame);dirty=true}}
 
 /* ---------- 情報カード ---------- */
-function showCard(s){sel=s;const i=INFO[s.k],card=$('card');$('cName').textContent=JA[s.k]||s.k;
+const GJ={Alpha:'α',Beta:'β',Gamma:'γ',Delta:'δ',Epsilon:'ε',Zeta:'ζ',Eta:'η',Theta:'θ',Iota:'ι',Kappa:'κ',Lambda:'λ',Mu:'μ',Nu:'ν',Xi:'ξ',Omicron:'ο',Pi:'π',Rho:'ρ',Sigma:'σ',Tau:'τ',Upsilon:'υ',Phi:'φ',Chi:'χ',Psi:'ψ',Omega:'ω'};
+function starLabel(k){if(JA[k])return JA[k];let m=k.match(/^([A-Z][a-z]+)(\d?) (\w+)$/);
+ if(m&&GJ[m[1]]&&CONS[m[3]])return CONS[m[3]][0]+GJ[m[1]]+m[2]+'星';
+ if((m=k.match(/^(\d+) (\w+)$/))&&CONS[m[2]])return CONS[m[2]][0]+m[1]+'番星';
+ if((m=k.match(/^([a-z]\d?) (\w+)$/))&&CONS[m[2]])return CONS[m[2]][0]+m[1]+'星';
+ if((m=k.match(/^HIP(\d+)$/)))return 'HIP '+m[1];return k}
+function showCard(s){sel=s;const i=INFO[s.k],card=$('card');$('cName').textContent=starLabel(s.k);
  $('cSub').textContent=(CONS[s.con]?CONS[s.con][0]:'')+(JA[s.k]?' / '+s.k:'');
  const tempC=tempK(s.bv)-273;
- const rows=[['見かけの明るさ',s.mag.toFixed(2)+'等'],['距離',i?'約'+i[1]+'光年':'データなし'],['スペクトル型',i?i[0]:'データなし'],['表面温度（推定）','約'+tempC.toLocaleString()+' °C'],['推定年齢',i?i[2]:'推定データなし']];
+ const rows=[['見かけの明るさ',s.mag.toFixed(2)+'等'],['距離',i&&i[1]!=null?'約'+i[1]+'光年':'データなし'],['スペクトル型',i&&i[0]?i[0]:'データなし'],['表面温度（推定）','約'+tempC.toLocaleString()+' °C'],['推定年齢',i&&i[2]?i[2]:'推定データなし']];
  $('cList').replaceChildren(...rows.flatMap(([a,b])=>{const t=document.createElement('dt'),d=document.createElement('dd');t.textContent=a;d.textContent=b;return[t,d]}));
  $('cNote').textContent=i?i[3]:'';card.hidden=false;need()}
 $('cardClose').onclick=()=>{$('card').hidden=true;sel=null;need()};
@@ -120,18 +130,18 @@ cv.addEventListener('pointermove',e=>{const o=ptrs.get(e.pointerId);if(!o)return
 const up=e=>{ptrs.delete(e.pointerId);pinch=0;if(down&&!down.moved&&ptrs.size===0&&performance.now()-down.t<500)pick(e.clientX,e.clientY);if(!ptrs.size){down=null;save()}};
 cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
 cv.addEventListener('wheel',e=>{e.preventDefault();S.fov=clamp(S.fov*Math.exp(e.deltaY*0.001),20,160);need()},{passive:false});
-function pick(x,y){let b=null,bd=22;for(const h of hits){const d=Math.hypot(h.x-x,h.y-y);if(d<bd||(d<bd+4&&b&&h.s.mag<b.mag-1)){bd=d;b=h.s}}if(b)showCard(b);else{$('card').hidden=true;sel=null;need()}}
+function pick(x,y){let b=null,bd=22;for(const h of hits){const d=Math.hypot(h.x-x,h.y-y);if(d<bd||(d<bd+4&&b&&h.s.mag<b.mag-1)){bd=d;b=h.s}}if(b)showCard(b);else if(!$('card').hidden){$('card').hidden=true;sel=null;need()}else setImmersive(!isImm())}
 
 /* ---------- 時刻・場所 ---------- */
 const p2=n=>String(n).padStart(2,'0');
-function syncTime(){const d=new Date(T);$('date').value=`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;$('time').value=`${p2(d.getHours())}:${p2(d.getMinutes())}`}
+function syncTime(){const d=new Date(T);$('date').value=`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;$('time').value=`${p2(d.getHours())}:${p2(d.getMinutes())}`;if(selCon)refreshMyth()}
 function readTime(){const v=new Date($('date').value+'T'+($('time').value||'00:00'));if(!isNaN(v)){T=v.getTime();baseT=T;$('dayShift').value=0;need()}}
 $('date').onchange=readTime;$('time').onchange=readTime;
 $('now').onclick=()=>{T=Date.now();baseT=T;$('dayShift').value=0;syncTime();need()};
 $('dayShift').oninput=e=>{T=baseT+(+e.target.value)*864e5;syncTime();need()};
 $('play').onclick=e=>{playing=!playing;last=0;e.target.setAttribute('aria-pressed',playing);e.target.textContent=playing?'■':'▶';if(playing){baseT=T;requestAnimationFrame(frame)}};
 const cs=$('city');cs.add(new Option('都道府県を選択',''));CITIES.forEach(c=>cs.add(new Option(c[0],c[0])));
-function setLoc(lat,lon,city){S.lat=+(+lat).toFixed(2);S.lon=+(+lon).toFixed(2);S.city=city;cs.value=city;$('lat').value=S.lat;$('lon').value=S.lon;save();need()}
+function setLoc(lat,lon,city){S.lat=+(+lat).toFixed(2);S.lon=+(+lon).toFixed(2);S.city=city;cs.value=city;$('lat').value=S.lat;$('lon').value=S.lon;save();if(selCon)refreshMyth();need()}
 cs.onchange=()=>{const c=CITIES.find(x=>x[0]===cs.value);if(c)setLoc(c[1],c[2],c[0]);else S.city=''};
 $('lat').onchange=$('lon').onchange=()=>{const la=+$('lat').value,lo=+$('lon').value;if(la>=-90&&la<=90&&lo>=-180&&lo<=180)setLoc(la,lo,'');else toast('緯度は-90〜90、経度は-180〜180で入力してください')};
 $('geo').onclick=()=>{if(!navigator.geolocation)return toast('この端末では位置情報を使えません');
@@ -144,8 +154,8 @@ const speed=$('speed'),speedOut=$('speedOut');
 function speedSeconds(){return Math.round(60*Math.pow(1440,(+speed.value)/100))}
 function showSpeed(){const seconds=speedSeconds();speedOut.textContent=seconds<3600?`1秒 = 約${Math.max(1,Math.round(seconds/60))}分`:`1秒 = 約${Math.round(seconds/3600*10)/10}時間`;S.speed=+speed.value}
 speed.value=S.speed??def.speed;showSpeed();speed.oninput=()=>{showSpeed();save()};
-[['tLines','lines'],['tCons','cons'],['tNames','names'],['tReal','real']].forEach(([id,k])=>{const el=$(id);el.checked=!!S[k];el.onchange=()=>{S[k]=el.checked?1:0;save();need()}});
-$('reset').onclick=()=>{try{localStorage.removeItem(KEY)}catch(e){}S=Object.assign({},def);lim.value=S.limit;limShow();speed.value=S.speed;showSpeed();setLoc(S.lat,S.lon,S.city);['tLines','tCons','tNames','tReal'].forEach(i=>$(i).checked=true);toast('保存した設定を消去しました')};
+[['tLines','lines'],['tCons','cons'],['tNames','names'],['tReal','real'],['tAuto','auto']].forEach(([id,k])=>{const el=$(id);el.checked=!!S[k];el.onchange=()=>{S[k]=el.checked?1:0;save();need()}});
+$('reset').onclick=()=>{try{localStorage.removeItem(KEY)}catch(e){}S=Object.assign({},def);lim.value=S.limit;limShow();speed.value=S.speed;showSpeed();setLoc(S.lat,S.lon,S.city);['tLines','tCons','tNames','tReal','tAuto'].forEach(i=>$(i).checked=true);armIdle();toast('保存した設定を消去しました')};
 let tt;function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2600)}
 
 /* ---------- 空にかざす ---------- */
@@ -153,14 +163,76 @@ let hd=null;
 function onOri(e){let h=e.webkitCompassHeading;if(h==null&&e.alpha!=null)h=(360-e.alpha)%360;if(h==null||e.beta==null)return;
  hd=hd==null?h:hd+((((h-hd)%360)+540)%360-180)*0.25;S.az=((hd+S.arOff)%360+360)%360;S.alt=clamp(e.beta-90,-30,90)}
 $('ar').onclick=async e=>{
- if(ar){ar=false;removeEventListener('deviceorientation',onOri);e.target.textContent='空にかざす(向きに連動)';e.target.setAttribute('aria-pressed',false);need();return}
+ if(ar){ar=false;removeEventListener('deviceorientation',onOri);e.target.textContent='空にかざす(向きに連動)';e.target.setAttribute('aria-pressed',false);setImmersive(false);need();return}
  try{if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'){if(await DeviceOrientationEvent.requestPermission()!=='granted')return toast('「モーションと方向」が許可されませんでした')}}catch(x){return toast('向きセンサーを使えませんでした')}
  if(!('DeviceOrientationEvent' in window))return toast('この端末は向きセンサーに対応していません');
  ar=true;hd=null;S.fov=70;addEventListener('deviceorientation',onOri);e.target.textContent='かざす表示を終了';e.target.setAttribute('aria-pressed',true);
- toast('スマホを空に向けてください。方位がずれる時は画面を左右にドラッグして補正できます');requestAnimationFrame(frame)};
+ setImmersive(true);toast('スマホを空に向けてください。方位がずれる時は画面を左右にドラッグして補正できます。空をタップすると操作画面が戻ります');requestAnimationFrame(frame)};
+
+/* ---------- 星座の一覧・神話 ---------- */
+const MYTH=window.MYTH||{},MODERN=new Set(window.MODERN||[]),conGeo={};let conFilter='all';
+const DIRS=['北','北東','東','南東','南','南西','西','北西'],dirName=az=>DIRS[Math.round((((az%360)+360)%360)/45)%8];
+function geo(c){if(conGeo[c])return conGeo[c];const L2=conStars[c]||[];let x=0,y=0,z=0;
+ for(const s of L2){const r=s.ra*D,d=s.dec*D;x+=Math.cos(d)*Math.cos(r);y+=Math.cos(d)*Math.sin(r);z+=Math.sin(d)}
+ const n=Math.hypot(x,y,z)||1;x/=n;y/=n;z/=n;let rad=0;
+ for(const s of L2){const r=s.ra*D,d=s.dec*D;rad=Math.max(rad,Math.acos(clamp(x*Math.cos(d)*Math.cos(r)+y*Math.cos(d)*Math.sin(r)+z*Math.sin(d),-1,1))/D)}
+ return conGeo[c]={ra:(Math.atan2(y,x)/D+360)%360,dec:Math.asin(clamp(z,-1,1))/D,rad}}
+function conAt(c,t){const g=geo(c),J=jd(t),q=precess(g,(J-2451545)/365.25),h=eq2hor(q[0],q[1],lstDeg(J,S.lon),S.lat);return {az:h[0]/D,alt:h[1]/D}}
+function sunAltAt(t){const J=jd(t),n=J-2451545,sp=sunPos(n);return eq2hor(sp.ra,sp.dec,lstDeg(J,S.lon),S.lat)[1]/D}
+function conState(c){const a=conAt(c,T);if(a.alt<3)return {k:'below',a};return {k:sunAltAt(T)>-9?'bright':'up',a}}
+function stateText(st){return st.k==='up'?`いま見えています(${dirName(st.a.az)}の空・高度${Math.round(st.a.alt)}°ごろ)`:st.k==='bright'?'いまは空が明るく、星は見えにくい時間です':'いまは地平線の下にあります'}
+function findVisible(c){for(const thr of [20,8])for(let k=1;k<=366*48;k++){const t=T+k*18e5;if(sunAltAt(t)>-12)continue;let ba=conAt(c,t).alt;if(ba<thr)continue;
+  let best=t;for(let j=1;j<=16;j++){const u=t+j*9e5;if(sunAltAt(u)>-12)break;const a=conAt(c,u).alt;if(a>ba){ba=a;best=u}}return best}return null}
+function lookAt(c){if(ar)$('ar').click();const a=conAt(c,T);S.az=(a.az+360)%360;S.fov=clamp(geo(c).rad*2.6,45,120);setView();
+ /* 神話カードが画面の下側をおおうので、星座が見える上側の中央にくるよう視線を下げる */
+ const m=$('myth'),side=!m.hidden&&matchMedia('(orientation:landscape) and (max-height:520px)').matches;
+ if(side){/* 横向き: カードが左側にあるので、星座が右側の中央にくるよう視線を左へ回す */
+  const dx=m.getBoundingClientRect().right/2/V.s/D,al=Math.max(a.alt,12);S.alt=clamp(al,-10,90);S.az=((a.az-dx/Math.max(0.3,Math.cos(al*D)))%360+360)%360}
+ else{const sh=m.hidden?0:m.offsetHeight/2/V.s/D;S.alt=clamp(Math.max(a.alt,12)-sh,-10,90)}
+ save();need()}
+function refreshMyth(){if(!selCon)return;const st=conState(selCon),t=stateText(st);if($('mState').textContent!==t)$('mState').textContent=t;$('mWhen').hidden=st.k==='up'}
+function showMyth(c){selCon=c;$('mName').textContent=CONS[c][0];$('mSub').textContent=(MODERN.has(c)?'近世にできた星座の由来':'星座にまつわる神話')+'(略号 '+c+')';
+ $('mText').textContent=MYTH[c];$('mState').textContent='';refreshMyth();const box=$('myth');box.hidden=false;box.scrollTop=0;need()}
+function hideMyth(){selCon=null;$('myth').hidden=true;need()}
+function renderList(){const q=$('conQ').value.trim().toLowerCase(),ul=$('conUl');
+ let items=Object.keys(CONS).filter(c=>MYTH[c]).map(c=>({c,name:CONS[c][0],st:conState(c)}));const total=items.length;
+ items=items.filter(o=>(conFilter==='all'||(conFilter==='up'&&o.st.k==='up')||(conFilter==='myth'&&!MODERN.has(o.c))||(conFilter==='modern'&&MODERN.has(o.c)))&&(!q||o.name.toLowerCase().includes(q)||o.c.toLowerCase().startsWith(q)));
+ items.sort((a,b)=>a.name.localeCompare(b.name,'ja'));
+ const lis=items.map(o=>{const li=document.createElement('li'),b=document.createElement('button'),n=document.createElement('span'),m=document.createElement('span');
+  b.type='button';b.dataset.c=o.c;n.className='cn';n.textContent=o.name;m.className='cm'+(o.st.k==='up'?' on':'');
+  m.textContent=(MODERN.has(o.c)?'由来':'神話')+' ・ '+(o.st.k==='up'?'いま見える':o.st.k==='bright'?'昼は見えない':'地平線の下');
+  b.append(n,m);li.append(b);return li});
+ if(!lis.length){const li=document.createElement('li');li.className='empty';li.textContent='見つかりませんでした';lis.push(li)}
+ ul.replaceChildren(...lis);$('conCount').textContent=`${items.length}星座を表示(全${total}星座)`}
+function closeList(){$('conSheet').hidden=true}
+$('conOpen').onclick=()=>{$('panel').open=false;$('card').hidden=true;sel=null;$('conQ').value='';renderList();$('conSheet').hidden=false;$('conUl').scrollTop=0;$('conSheetClose').focus()};
+$('conSheetClose').onclick=()=>{closeList();$('conOpen').focus()};
+$('conQ').oninput=renderList;
+$('conFilters').onclick=e=>{const b=e.target.closest('button[data-f]');if(!b)return;conFilter=b.dataset.f;for(const x of $('conFilters').children)x.setAttribute('aria-pressed',x===b);renderList()};
+$('conUl').onclick=e=>{const b=e.target.closest('button[data-c]');if(!b)return;const c=b.dataset.c;closeList();showMyth(c);lookAt(c);
+ const st=conState(c);if(st.k!=='up')toast(st.k==='below'?'いまは地平線の下です。「見える日時にする」で時刻を合わせられます':'いまは空が明るい時間です。「見える日時にする」で夜に合わせられます')};
+$('mLook').onclick=()=>{if(selCon)lookAt(selCon)};
+$('mWhen').onclick=()=>{if(!selCon)return;const t=findVisible(selCon);if(t==null)return toast('この場所では、1年を通してほとんど見えない星座です');
+ T=t;baseT=t;$('dayShift').value=0;syncTime();lookAt(selCon);const d=new Date(t);toast(`${d.getMonth()+1}月${d.getDate()}日 ${p2(d.getHours())}:${p2(d.getMinutes())}ごろの空に合わせました`)};
+$('mythClose').onclick=hideMyth;
+addEventListener('keydown',e=>{if(e.key!=='Escape')return;if(!$('conSheet').hidden)closeList();else if(!$('myth').hidden)hideMyth()});
+
+/* ---------- 没入モード(上部バー・設定パネルを隠して星空に集中) ---------- */
+const IDLE_MS=10000,bodyCl=document.body.classList;let idleT=0,hintN=0;
+function isImm(){return bodyCl.contains('immersive')}
+function setImmersive(on,hint){
+ if(on===isImm())return;
+ bodyCl.toggle('immersive',on);$('uiShow').hidden=!on;
+ if(on){clearTimeout(idleT);$('panel').open=false;if(hint&&hintN++<2)toast('空をタップすると操作画面が戻ります')}
+ else armIdle()}
+function armIdle(){clearTimeout(idleT);if(!S.auto||isImm())return;
+ idleT=setTimeout(()=>{if($('panel').open||!$('conSheet').hidden||ptrs.size)armIdle();else setImmersive(true,true)},IDLE_MS)}
+$('uiShow').onclick=()=>setImmersive(false);
+$('tAuto').addEventListener('change',armIdle);
+['pointerdown','keydown','input','change','wheel'].forEach(t=>addEventListener(t,()=>{if(t==='keydown'&&isImm())setImmersive(false);else armIdle()},true));
 
 /* ---------- 起動 ---------- */
-setLoc(S.lat,S.lon,S.city);syncTime();addEventListener('resize',need);
+setLoc(S.lat,S.lon,S.city);syncTime();addEventListener('resize',need);armIdle();
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 need();
 })();
