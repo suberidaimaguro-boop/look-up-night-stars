@@ -3,7 +3,7 @@
 const D=Math.PI/180,$=id=>document.getElementById(id),cv=$('sky'),ctx=cv.getContext('2d');
 const KEY='hoshizora.v1',clamp=(x,a,b)=>Math.min(b,Math.max(a,x)),dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
 const AR_FOV=55,VER=3;/* 星との距離を近く: 通常の視野を110→80°、ジャイロ時を70→55°に */
-const def={lat:35.86,lon:139.65,city:'埼玉県（さいたま）',limit:6.3,lines:1,cons:1,names:0,real:1,az:180,alt:55,fov:80,arOff:0,speed:34,auto:1,gyro:1,ver:VER};
+const def={lat:35.86,lon:139.65,city:'埼玉県（さいたま）',limit:6.3,lines:1,cons:1,names:0,real:1,az:180,alt:55,fov:80,arOff:0,speed:34,auto:1,gyro:1,art:'all',ver:VER};
 const PREFECTURES=['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
 CITIES.forEach((city,index)=>city[0]=`${PREFECTURES[index]}（${city[0]}）`);
 let S=Object.assign({},def),stored={};try{stored=JSON.parse(localStorage.getItem(KEY)||'{}')||{};Object.assign(S,stored)}catch(e){stored={}}
@@ -73,6 +73,7 @@ function draw(){dirty=false;const dpr=window.devicePixelRatio||1;
  [['北',0],['東',90],['南',180],['西',270]].forEach(([t,a])=>{const p=proj(a*D,3*D);if(p)ctx.fillText(t,p[0],p[1])});
  // 位置計算
  for(const s of stars){if(s.mag>eff+0.5&&s.k===null){s.v=0;continue}const q=yrs?precess(s,yrs):[s.ra,s.dec],h=eq2hor(q[0],q[1],L,S.lat);s.az=h[0];s.alt=h[1];s.v=h[1]>-0.02}
+ drawArt(1-tw);
  // 星座線
  if(S.lines){ctx.strokeStyle=`rgba(${mix([110,150,205],[255,255,255],dy)},${0.5+0.1*dy})`;ctx.lineWidth=1;ctx.beginPath();
   for(const c in CONS)for(const [a,b] of CONS[c][1]){const A=byKey[a],B=byKey[b];if(!A||!B||!A.v||!B.v)continue;const p=proj(A.az,A.alt),q=proj(B.az,B.alt);if(p&&q){ctx.moveTo(p[0],p[1]);ctx.lineTo(q[0],q[1])}}ctx.stroke()}
@@ -105,6 +106,22 @@ function draw(){dirty=false;const dpr=window.devicePixelRatio||1;
 function moon(x,y,R,el){const k=Math.cos(el),wax=Math.sin(el)>0;ctx.fillStyle='#262b3a';ctx.beginPath();ctx.arc(x,y,R,0,6.283);ctx.fill();
  ctx.fillStyle='#f4f0dc';ctx.beginPath();ctx.arc(x,y,R,-Math.PI/2,Math.PI/2,!wax);
  ctx.ellipse(x,y,Math.max(0.01,R*Math.abs(k)),R,0,Math.PI/2,-Math.PI/2,wax?k>0:k<0);ctx.fill()}
+/* ---------- 星座絵(絵の中の目印を、実際の星の位置に合わせて重ねる) ---------- */
+const ARTS=window.ART||{},artImg={},artA={};
+function getArt(c){let o=artImg[c];if(!o){o=artImg[c]=new Image();o.onload=need;o.src=ARTS[c].src}return o.complete&&o.naturalWidth?o:null}
+function artFit(c){const o=ARTS[c],P=[],Q=[],Wt=[],fl=o.flip?-1:1;
+ for(const [k,u,v,w] of o.a){const s=byKey[k];if(!s||!s.v)return null;const p=proj(s.az,s.alt);if(!p)return null;P.push([u,fl*v]);Q.push(p);Wt.push(w||1)}
+ let sw=0,mp=[0,0],mq=[0,0];P.forEach((p,i)=>{sw+=Wt[i];mp[0]+=Wt[i]*p[0];mp[1]+=Wt[i]*p[1];mq[0]+=Wt[i]*Q[i][0];mq[1]+=Wt[i]*Q[i][1]});
+ mp=mp.map(x=>x/sw);mq=mq.map(x=>x/sw);let nr=0,ni=0,dn=0;
+ P.forEach((p,i)=>{const px=p[0]-mp[0],py=p[1]-mp[1],qx=Q[i][0]-mq[0],qy=Q[i][1]-mq[1];nr+=Wt[i]*(px*qx+py*qy);ni+=Wt[i]*(px*qy-py*qx);dn+=Wt[i]*(px*px+py*py)});
+ const ar=nr/dn,ai=ni/dn,sc=Math.hypot(ar,ai);if(!(sc>20&&sc<8000))return null;
+ return [ar,ai,-fl*ai,fl*ar,mq[0]-ar*mp[0]+ai*mp[1],mq[1]-ai*mp[0]-ar*mp[1]]}
+function drawArt(nk){const c0=selCon||(sel&&sel.con),mode=S.art;let busy=false;
+ for(const c in ARTS){const t=mode==='off'?0:c===c0?1:mode==='all'?0.5:0;let cur=artA[c]||0;
+  if(Math.abs(t-cur)>0.01){cur+=(t-cur)*0.2;busy=true}else cur=t;artA[c]=cur;
+  if(cur<0.02||nk<0.02)continue;const img=getArt(c);if(!img)continue;const m=artFit(c);if(!m)continue;
+  ctx.save();ctx.globalCompositeOperation='lighter';ctx.globalAlpha=Math.min(1,0.75*cur*nk);ctx.transform(m[0],m[1],m[2],m[3],m[4],m[5]);ctx.drawImage(img,0,0,1,1);ctx.restore()}
+ if(busy)need()}
 function need(){if(!dirty){dirty=true;requestAnimationFrame(frame)}}
 function frame(now){if(playing){const dt=Math.min(now-(last||now),100);last=now;T+=dt*speedSeconds();syncTime();dirty=true}
  draw();if(playing||ar){requestAnimationFrame(frame);dirty=true}}
@@ -159,8 +176,9 @@ const speed=$('speed'),speedOut=$('speedOut');
 function speedSeconds(){return Math.round(60*Math.pow(1440,(+speed.value)/100))}
 function showSpeed(){const seconds=speedSeconds();speedOut.textContent=seconds<3600?`1秒 = 約${Math.max(1,Math.round(seconds/60))}分`:`1秒 = 約${Math.round(seconds/3600*10)/10}時間`;S.speed=+speed.value}
 speed.value=S.speed??def.speed;showSpeed();speed.oninput=()=>{showSpeed();save()};
+$('artMode').value=S.art||'all';$('artMode').onchange=e=>{S.art=e.target.value;save();need()};
 [['tLines','lines'],['tCons','cons'],['tNames','names'],['tReal','real'],['tAuto','auto']].forEach(([id,k])=>{const el=$(id);el.checked=!!S[k];el.onchange=()=>{S[k]=el.checked?1:0;save();need()}});
-$('reset').onclick=()=>{try{localStorage.removeItem(KEY)}catch(e){}S=Object.assign({},def);lim.value=S.limit;limShow();speed.value=S.speed;showSpeed();setLoc(S.lat,S.lon,S.city);[['tLines','lines'],['tCons','cons'],['tNames','names'],['tReal','real'],['tAuto','auto']].forEach(([i,k])=>$(i).checked=!!S[k]);armIdle();startAR('quiet');toast('保存した設定を消去しました')};
+$('reset').onclick=()=>{try{localStorage.removeItem(KEY)}catch(e){}S=Object.assign({},def);$('artMode').value=S.art;lim.value=S.limit;limShow();speed.value=S.speed;showSpeed();setLoc(S.lat,S.lon,S.city);[['tLines','lines'],['tCons','cons'],['tNames','names'],['tReal','real'],['tAuto','auto']].forEach(([i,k])=>$(i).checked=!!S[k]);armIdle();startAR('quiet');toast('保存した設定を消去しました')};
 let tt;function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2600)}
 
 /* ---------- ジャイロ(スマホの向きに連動) ---------- */
