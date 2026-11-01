@@ -13,5 +13,11 @@ window.ART={
  Leo:{src:'art/Leo.webp',flip:0,a:[['Regulus',0.7656,0.6220],['Eta Leo',0.7855,0.5582],['Algieba',0.7177,0.4306],['Rasalas',0.7496,0.3190],['Algenubi',0.7974,0.2791],['Zosma',0.3030,0.4147],['Denebola',0.3644,0.1994],['Chertan',0.4466,0.5502]]},
  Peg:{src:'art/Peg.webp',flip:0,a:[['Enif',0.7974,0.4402],['Homam',0.6499,0.5550],['Markab',0.5742,0.6140],['Scheat',0.4362,0.4801],['Alpheratz',0.2887,0.6093],['Matar',0.4537,0.4139]]},
  Lyr:{src:'art/Lyr.webp',flip:0,a:[['Vega',0.5582,0.1834],['Sulafat',0.4785,0.6619],['Sheliak',0.6380,0.6619],['Zeta Lyr',0.5207,0.3030],['Epsilon2 Lyr',0.4545,0.1722],['Delta2 Lyr',0.4195,0.4155]]},
- Aql:{src:'art/Aql.webp',flip:1,a:[['Tarazed',0.7049,0.4561],['Altair',0.6380,0.5104],['Alshain',0.5710,0.5646],['Theta Aql',0.3373,0.7576],['Eta Aql',0.3700,0.5774],['Delta Aql',0.4003,0.3238],['Al Thalimain Prior',0.0829,0.2049]]}
+ Aql:{src:'art/Aql.webp',flip:1,a:[['Tarazed',0.7049,0.4561],['Altair',0.6380,0.5104],['Alshain',0.5710,0.5646],['Theta Aql',0.3373,0.7576],['Eta Aql',0.3700,0.5774],['Delta Aql',0.4003,0.3238],['Al Thalimain Prior',0.0829,0.2049]]},
+ Gem:{src:'art/Gem.webp',flip:1,a:[['Castor',0.3850,0.1100,2],['Mebsuta',0.4000,0.6600],['Tejat',0.3850,0.9050],['Propus',0.3100,0.9450],['Pollux',0.6000,0.0900,2],['Wasat',0.6050,0.3800],['Alhena',0.7000,0.9250]]},
+ CMa:{src:'art/CMa.webp',flip:1,a:[['Sirius',0.2500,0.3600,2],['Mirzam',0.0600,0.5500],['Wezen',0.5000,0.4200],['Adhara',0.6200,0.5500],['Aludra',0.7200,0.4000]]},
+ CMi:{src:'art/CMi.webp',flip:1,a:[['Gomeisa',0.3500,0.1500],['Procyon',0.6000,0.4200,2]]},
+ Aur:{src:'art/Aur.webp',flip:0,a:[['Capella',0.57,0.28,2],['Menkalinan',0.42,0.19],['Mahasim',0.30,0.41],['Hassaleh',0.57,0.66],['Elnath',0.43,0.66]]},
+ Vir:{src:'art/Vir.webp',flip:1,a:[['Spica',0.36,0.17,2],['Porrima',0.56,0.20],['Vindemiatrix',0.74,0.46],['Zavijava',0.70,0.11],['Heze',0.50,0.35]]},
+ Sgr:{src:'art/Sgr.webp',flip:1,a:[['Kaus Borealis',0.27,0.045],['Kaus Media',0.14,0.255],['Kaus Australis',0.235,0.47],['Alnasl',0.05,0.225],['Nunki',0.50,0.24],['Phi Sgr',0.42,0.27],['Ascella',0.40,0.33],['Pi Sgr',0.43,0.17],['Rukbat',0.74,0.58],['Arkab Prior',0.52,0.88],['Eta Sgr',0.17,0.68]]}
 };
