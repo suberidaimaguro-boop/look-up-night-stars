@@ -3,7 +3,7 @@
 const D=Math.PI/180,$=id=>document.getElementById(id),cv=$('sky'),ctx=cv.getContext('2d');
 const KEY='hoshizora.v1',clamp=(x,a,b)=>Math.min(b,Math.max(a,x)),dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
 const AR_FOV=55,VER=3;/* 星との距離を近く: 通常の視野を110→80°、ジャイロ時を70→55°に */
-const def={lat:35.86,lon:139.65,city:'埼玉県（さいたま）',limit:6.3,lines:1,cons:1,names:0,real:1,az:180,alt:55,fov:80,arOff:0,speed:34,auto:1,gyro:1,art:'all',ver:VER};
+const def={lat:35.86,lon:139.65,city:'埼玉県（さいたま）',limit:6.3,lines:1,cons:1,names:0,real:1,az:180,alt:55,fov:80,arOff:0,speed:34,auto:1,gyro:1,art:'all',intro:1,ver:VER};
 const PREFECTURES=['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
 CITIES.forEach((city,index)=>city[0]=`${PREFECTURES[index]}（${city[0]}）`);
 let S=Object.assign({},def),stored={};try{stored=JSON.parse(localStorage.getItem(KEY)||'{}')||{};Object.assign(S,stored)}catch(e){stored={}}
@@ -109,8 +109,9 @@ function moon(x,y,R,el){const k=Math.cos(el),wax=Math.sin(el)>0;ctx.fillStyle='#
 /* ---------- 星座絵(絵の中の目印を、実際の星の位置に合わせて重ねる) ---------- */
 const ARTS=window.ART||{},artImg={},artA={};
 function getArt(c){let o=artImg[c];if(!o){o=artImg[c]=new Image();o.onload=need;o.src=ARTS[c].src}return o.complete&&o.naturalWidth?o:null}
-function artFit(c){const o=ARTS[c],P=[],Q=[],Wt=[],fl=o.flip?-1:1;
- for(const [k,u,v,w] of o.a){const s=byKey[k];if(!s||!s.v)return null;const p=proj(s.az,s.alt);if(!p)return null;P.push([u,fl*v]);Q.push(p);Wt.push(w||1)}
+function artFit(c){const o=ARTS[c],P=[],Q=[],Wt=[],fl=o.flip?-1:1;let vis=0;
+ for(const [k,u,v,w] of o.a){const s=byKey[k];if(!s)continue;const p=proj(s.az,s.alt);if(!p)continue;if(s.v)vis++;P.push([u,fl*v]);Q.push(p);Wt.push(w||1)}
+ if(P.length<3||vis<Math.max(3,Math.ceil(o.a.length*0.6)))return null;
  let sw=0,mp=[0,0],mq=[0,0];P.forEach((p,i)=>{sw+=Wt[i];mp[0]+=Wt[i]*p[0];mp[1]+=Wt[i]*p[1];mq[0]+=Wt[i]*Q[i][0];mq[1]+=Wt[i]*Q[i][1]});
  mp=mp.map(x=>x/sw);mq=mq.map(x=>x/sw);let nr=0,ni=0,dn=0;
  P.forEach((p,i)=>{const px=p[0]-mp[0],py=p[1]-mp[1],qx=Q[i][0]-mq[0],qy=Q[i][1]-mq[1];nr+=Wt[i]*(px*qx+py*qy);ni+=Wt[i]*(px*qy-py*qx);dn+=Wt[i]*(px*px+py*py)});
@@ -177,21 +178,23 @@ function speedSeconds(){return Math.round(60*Math.pow(1440,(+speed.value)/100))}
 function showSpeed(){const seconds=speedSeconds();speedOut.textContent=seconds<3600?`1秒 = 約${Math.max(1,Math.round(seconds/60))}分`:`1秒 = 約${Math.round(seconds/3600*10)/10}時間`;S.speed=+speed.value}
 speed.value=S.speed??def.speed;showSpeed();speed.oninput=()=>{showSpeed();save()};
 $('artMode').value=S.art||'all';$('artMode').onchange=e=>{S.art=e.target.value;save();need()};
-[['tLines','lines'],['tCons','cons'],['tNames','names'],['tReal','real'],['tAuto','auto']].forEach(([id,k])=>{const el=$(id);el.checked=!!S[k];el.onchange=()=>{S[k]=el.checked?1:0;save();need()}});
-$('reset').onclick=()=>{try{localStorage.removeItem(KEY)}catch(e){}S=Object.assign({},def);$('artMode').value=S.art;lim.value=S.limit;limShow();speed.value=S.speed;showSpeed();setLoc(S.lat,S.lon,S.city);[['tLines','lines'],['tCons','cons'],['tNames','names'],['tReal','real'],['tAuto','auto']].forEach(([i,k])=>$(i).checked=!!S[k]);armIdle();startAR('quiet');toast('保存した設定を消去しました')};
+[['tLines','lines'],['tCons','cons'],['tNames','names'],['tReal','real'],['tAuto','auto'],['tIntro','intro']].forEach(([id,k])=>{const el=$(id);el.checked=!!S[k];el.onchange=()=>{S[k]=el.checked?1:0;save();need()}});
+$('reset').onclick=()=>{try{localStorage.removeItem(KEY)}catch(e){}S=Object.assign({},def);$('artMode').value=S.art;lim.value=S.limit;limShow();speed.value=S.speed;showSpeed();setLoc(S.lat,S.lon,S.city);[['tLines','lines'],['tCons','cons'],['tNames','names'],['tReal','real'],['tAuto','auto'],['tIntro','intro']].forEach(([i,k])=>$(i).checked=!!S[k]);armIdle();startAR('quiet');toast('保存した設定を消去しました')};
 let tt;function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2600)}
 
 /* ---------- ジャイロ(スマホの向きに連動) ---------- */
-let hd=null;
+let hd=null,gotOri=false,oev='ondeviceorientationabsolute' in window?'deviceorientationabsolute':'deviceorientation',oriT=0;
 function onOri(e){let h=e.webkitCompassHeading;if(h==null&&e.alpha!=null)h=(360-e.alpha)%360;if(h==null||e.beta==null)return;
- hd=hd==null?h:hd+((((h-hd)%360)+540)%360-180)*0.25;S.az=((hd+S.arOff)%360+360)%360;S.alt=clamp(e.beta-90,-30,90)}
-const arBtn=$('ar'),needPerm=typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function';
-function arUi(on){arBtn.textContent=on?'ジャイロをオフにする':'ジャイロ(向きに連動)をオンにする';arBtn.setAttribute('aria-pressed',on)}
-function beginAR(mode){ar=true;hd=null;S.fov=AR_FOV;addEventListener('deviceorientation',onOri);arUi(true);
- if(mode==='button'){setImmersive(true);toast('スマホを空に向けてください。方位がずれる時は画面を左右にドラッグして補正できます。空をタップすると操作画面が戻ります')}
+ hd=hd==null?h:hd+((((h-hd)%360)+540)%360-180)*0.25;gotOri=true;S.az=((hd+S.arOff)%360+360)%360;S.alt=clamp(e.beta-90,-30,90)}
+const arBtn=$('ar'),arReset=$('arReset'),needPerm=typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function';
+function arUi(on){arReset.hidden=!on;arBtn.textContent=on?'ジャイロをオフにする':'ジャイロ(向きに連動)をオンにする';arBtn.setAttribute('aria-pressed',on)}
+function beginAR(mode){ar=true;hd=null;gotOri=false;S.arOff=0;S.fov=AR_FOV;addEventListener(oev,onOri);arUi(true);
+ /* Androidは「絶対方位」(コンパス基準)のイベントを優先する。届かない端末では通常のイベントに切り替える */
+ clearTimeout(oriT);if(oev!=='deviceorientation')oriT=setTimeout(()=>{if(ar&&!gotOri){removeEventListener(oev,onOri);oev='deviceorientation';addEventListener(oev,onOri)}},2000);
+ if(mode==='button'){setImmersive(true);toast('スマホを空に向けてください。方位がずれる時は、右下の「方位リセット」を押すか、画面を左右にドラッグして補正できます。空をタップすると操作画面が戻ります')}
  else if(mode==='tap')toast('ジャイロがオンになりました。スマホを空に向けてください');
  requestAnimationFrame(frame)}
-function stopAR(persist){if(!ar)return;ar=false;removeEventListener('deviceorientation',onOri);arUi(false);if(persist){S.gyro=0;save()}if(persist)setImmersive(false);need()}
+function stopAR(persist){if(!ar)return;ar=false;clearTimeout(oriT);removeEventListener(oev,onOri);arUi(false);if(persist){S.gyro=0;save()}if(persist)setImmersive(false);need()}
 /* mode: 'button'(ボタン操作) / 'tap'(起動後の最初のタップ) / 'quiet'(通知なし) */
 async function startAR(mode){if(ar||starting)return;starting=true;
  try{if(needPerm){try{if(await DeviceOrientationEvent.requestPermission()!=='granted'){toast('「モーションと方向」が許可されませんでした');return}}catch(x){toast('向きセンサーを使えませんでした');return}}
@@ -199,13 +202,28 @@ async function startAR(mode){if(ar||starting)return;starting=true;
   if(mode==='button'){S.gyro=1;save()}
   beginAR(mode)}finally{starting=false}}
 arBtn.onclick=()=>{if(ar)stopAR(true);else startAR('button')};
+/* 方位リセット: ドラッグで加えた補正を消して、センサーが示す向きに戻す */
+arReset.onclick=()=>{if(!ar)return;S.arOff=0;hd=null;save();need();toast('方位をセンサーの向きに戻しました')};
 /* 起動時の自動オン。iPhoneは許可の確認に画面の操作が必要なので、最初のタップで始める。
    Androidなどは、実際にセンサーの値が届いたときだけオンにする(PCではオンにならない) */
 function autoGyro(){if(!S.gyro)return;
  if(needPerm){toast('画面をタップすると、ジャイロ(向き連動)が始まります');document.addEventListener('click',()=>{if(S.gyro&&!ar)startAR('tap')},{capture:true,once:true});return}
  if(!('DeviceOrientationEvent' in window))return;let pt;
- const probe=e=>{if(e.beta!=null&&(e.alpha!=null||e.webkitCompassHeading!=null)){removeEventListener('deviceorientation',probe);clearTimeout(pt);if(S.gyro&&!ar)beginAR('quiet')}};
- addEventListener('deviceorientation',probe);pt=setTimeout(()=>removeEventListener('deviceorientation',probe),4000)}
+ const evs=['deviceorientationabsolute','deviceorientation'];
+ const probe=e=>{if(e.beta!=null&&(e.alpha!=null||e.webkitCompassHeading!=null)){evs.forEach(n=>removeEventListener(n,probe));clearTimeout(pt);oev=e.type==='deviceorientationabsolute'?'deviceorientationabsolute':'deviceorientation';if(S.gyro&&!ar)beginAR('quiet')}};
+ evs.forEach(n=>addEventListener(n,probe));pt=setTimeout(()=>evs.forEach(n=>removeEventListener(n,probe)),4000)}
+
+/* ---------- 起動時のメッセージ(約3秒で自動的に消える。設定でオフにできる) ---------- */
+function showIntro(done){const el=$('intro');
+ if(!el)return done();if(!S.intro){el.remove();return done()}
+ const lines=['カーテンを閉めたままでも、','シャッターを閉めたままでも、','いつでも星を見ることができます。'],box=el.querySelector('.txt');let i=0,ended=false,t1,t2;
+ lines.forEach(t=>{const p=document.createElement('span');p.className='ln';[...t].forEach(c=>{const x=document.createElement('span');x.className='ch';x.textContent=c;x.style.setProperty('--i',i++);p.append(x)});box.append(p)});
+ el.hidden=false;
+ const end=()=>{if(ended)return;ended=true;clearTimeout(t1);clearTimeout(t2);el.remove();done()};
+ const out=()=>{if(el.classList.contains('out'))return;clearTimeout(t1);el.classList.add('out');t2=setTimeout(end,matchMedia('(prefers-reduced-motion:reduce)').matches?400:1700)};
+ t1=setTimeout(out,3000);
+ el.onclick=out;
+ $('introOff').onclick=e=>{e.stopPropagation();S.intro=0;$('tIntro').checked=false;save();out()}}
 
 /* ---------- 星座の一覧・神話 ---------- */
 const MYTH=window.MYTH||{},MODERN=new Set(window.MODERN||[]),conGeo={};let conFilter='all';
@@ -270,7 +288,7 @@ $('tAuto').addEventListener('change',armIdle);
 ['pointerdown','keydown','input','change','wheel'].forEach(t=>addEventListener(t,()=>{if(t==='keydown'&&isImm())setImmersive(false);else armIdle()},true));
 
 /* ---------- 起動 ---------- */
-setLoc(S.lat,S.lon,S.city);syncTime();addEventListener('resize',need);armIdle();autoGyro();
+setLoc(S.lat,S.lon,S.city);syncTime();addEventListener('resize',need);armIdle();showIntro(autoGyro);
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 need();
 })();
