@@ -2,18 +2,19 @@
 'use strict';
 const D=Math.PI/180,$=id=>document.getElementById(id),cv=$('sky'),ctx=cv.getContext('2d');
 const KEY='hoshizora.v1',clamp=(x,a,b)=>Math.min(b,Math.max(a,x)),dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
-const AR_FOV=55,VER=3;/* 星との距離を近く: 通常の視野を110→80°、ジャイロ時を70→55°に */
-const def={lat:35.86,lon:139.65,city:'埼玉県（さいたま）',limit:6.3,lines:1,cons:1,names:0,real:1,az:180,alt:55,fov:80,arOff:0,speed:34,auto:1,gyro:1,art:'all',intro:1,ver:VER};
+const AR_FOV=55,VER=4;/* 星との距離を近く: 通常の視野を110→80°、ジャイロ時を70→55°に */
+const def={lat:35.86,lon:139.65,city:'埼玉県（さいたま）',limit:6.3,lines:1,cons:1,names:0,real:1,az:180,alt:55,fov:80,arOff:0,speed:34,auto:1,gyro:1,art:'sel',hint:0,intro:1,ver:VER};
 const PREFECTURES=['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
 CITIES.forEach((city,index)=>city[0]=`${PREFECTURES[index]}（${city[0]}）`);
 let S=Object.assign({},def),stored={};try{stored=JSON.parse(localStorage.getItem(KEY)||'{}')||{};Object.assign(S,stored)}catch(e){stored={}}
 /* 以前の版で保存された設定には、新しい初期値(星の名前オフ・近い視野・ジャイロオン)を一度だけ適用する */
 if((stored.ver||1)<2){S.names=def.names;S.fov=def.fov;S.gyro=def.gyro}
 if((stored.ver||1)<3)S.limit=def.limit;
+if((stored.ver||1)<4)S.art=def.art;/* 星座絵は「タップした星座だけ」を初期設定にする(一度だけ) */
 S.ver=VER;
 if(!CITIES.some(city=>city[0]===S.city)){const old=CITIES.find(city=>city[0].endsWith(`（${S.city}）`));S.city=old?old[0]:def.city}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
-const fb=new Map();let posKey='',posT=0,T=Date.now(),baseT=T,playing=false,last=0,ar=false,W=0,H=0,V={},hits=[],sel=null,selCon=null,dirty=false,starting=false;
+const fb=new Map();let posKey='',posT=0,T=Date.now(),baseT=T,playing=false,last=0,ar=false,W=0,H=0,V={},hits=[],sel=null,selCon=null,artSel=null,conHits=[],dirty=false,starting=false;
 
 /* ---------- 星表 ---------- */
 const stars=STAR_DATA.map(r=>({k:r[0],ra:r[1]*15,dec:r[2],mag:r[3],bv:r[4],con:r[5],r0:3.0*Math.pow(10,-0.11*r[3])}));
@@ -103,9 +104,9 @@ function draw(){dirty=false;const dpr=window.devicePixelRatio||1;
    ctx.fillStyle='rgba(240,236,224,.95)';ctx.fillText((JA[s.k]||s.k).replace(/\(.*\)/,''),p[0]+r+5,p[1]-r-2)}
   ctx.shadowBlur=0;ctx.textBaseline='alphabetic'}
  // 星座名
- if(S.cons||selCon){ctx.font='13px sans-serif';ctx.textAlign='center';ctx.shadowColor='rgba(0,0,0,.6)';ctx.shadowBlur=3;ctx.fillStyle=`rgb(${mix([232,180,90],[255,240,190],dy)})`;
+ conHits.length=0;if(S.cons||selCon){ctx.font='13px sans-serif';ctx.textAlign='center';ctx.shadowColor='rgba(0,0,0,.6)';ctx.shadowBlur=3;ctx.fillStyle=`rgb(${mix([232,180,90],[255,240,190],dy)})`;
   for(const c in CONS){const L2=conStars[c];if(!L2.length||(!S.cons&&c!==selCon))continue;let x=0,y=0,z=0,m=0;for(const s of L2)if(s.v){x+=Math.cos(s.alt)*Math.sin(s.az);y+=Math.cos(s.alt)*Math.cos(s.az);z+=Math.sin(s.alt);m++}
-   if(m<L2.length*0.6)continue;const az=(Math.atan2(x,y)+2*Math.PI)%(2*Math.PI),al=Math.atan2(z,Math.hypot(x,y)),p=proj(az,al);if(p)ctx.fillText(CONS[c][0],p[0],p[1]+16)}ctx.shadowBlur=0}
+   if(m<L2.length*0.6)continue;const az=(Math.atan2(x,y)+2*Math.PI)%(2*Math.PI),al=Math.atan2(z,Math.hypot(x,y)),p=proj(az,al);if(p){const nm=CONS[c][0]+(ARTS[c]?' ✦':'');ctx.fillText(nm,p[0],p[1]+16);conHits.push({c,x:p[0],y:p[1]+16,w:ctx.measureText(nm).width})}}ctx.shadowBlur=0}
  // 太陽・月
  if(sh[1]>-0.05){const p=proj(sh[0],sh[1]);if(p){ctx.shadowColor='#ffd27a';ctx.shadowBlur=30;ctx.fillStyle='#ffe9a8';ctx.beginPath();ctx.arc(p[0],p[1],9*V.z,0,6.283);ctx.fill();ctx.shadowBlur=0}}
  if(mh[1]>-0.05){const p=proj(mh[0],mh[1]);if(p)moon(p[0],p[1],8*V.z,mp.el)}
@@ -120,14 +121,14 @@ const ARTS=window.ART||{},artImg={},artA={};
 function getArt(c){let o=artImg[c];if(!o){o=artImg[c]=new Image();o.onload=need;o.src=ARTS[c].src}return o.complete&&o.naturalWidth?o:null}
 function artFit(c){const o=ARTS[c],P=[],Q=[],Wt=[],fl=o.flip?-1:1;let vis=0;
  for(const [k,u,v,w] of o.a){const s=byKey[k];if(!s)continue;const p=proj(s.az,s.alt);if(!p)continue;if(s.v)vis++;P.push([u,fl*v]);Q.push(p);Wt.push(w||1)}
- if(P.length<3||vis<Math.max(3,Math.ceil(o.a.length*0.6)))return null;
+ const need2=Math.min(3,o.a.length);if(P.length<need2||vis<Math.max(need2,Math.ceil(o.a.length*0.6)))return null;/* 目印が2つだけの星座(こいぬ座)も使えるようにした */
  let sw=0,mp=[0,0],mq=[0,0];P.forEach((p,i)=>{sw+=Wt[i];mp[0]+=Wt[i]*p[0];mp[1]+=Wt[i]*p[1];mq[0]+=Wt[i]*Q[i][0];mq[1]+=Wt[i]*Q[i][1]});
  mp=mp.map(x=>x/sw);mq=mq.map(x=>x/sw);let nr=0,ni=0,dn=0;
  P.forEach((p,i)=>{const px=p[0]-mp[0],py=p[1]-mp[1],qx=Q[i][0]-mq[0],qy=Q[i][1]-mq[1];nr+=Wt[i]*(px*qx+py*qy);ni+=Wt[i]*(px*qy-py*qx);dn+=Wt[i]*(px*px+py*py)});
  const ar=nr/dn,ai=ni/dn,sc=Math.hypot(ar,ai);if(!(sc>20&&sc<8000))return null;
  return [ar,ai,-fl*ai,fl*ar,mq[0]-ar*mp[0]+ai*mp[1],mq[1]-ai*mp[0]-ar*mp[1]]}
-function drawArt(nk){const c0=selCon||(sel&&sel.con),mode=S.art;let busy=false;
- for(const c in ARTS){const t=mode==='off'?0:c===c0?1:mode==='all'?0.5:0;let cur=artA[c]||0;
+function drawArt(nk){const cs=[artSel,sel&&sel.con],mode=S.art;let busy=false;
+ for(const c in ARTS){const t=mode==='off'?0:cs.includes(c)?1:mode==='all'?0.5:0;let cur=artA[c]||0;
   if(Math.abs(t-cur)>0.01){cur+=(t-cur)*0.2;busy=true}else cur=t;artA[c]=cur;
   if(cur<0.02||nk<0.02)continue;const img=getArt(c);if(!img)continue;const m=artFit(c);if(!m)continue;
   {const xs=[m[4],m[0]+m[4],m[2]+m[4],m[0]+m[2]+m[4]],ys=[m[5],m[1]+m[5],m[3]+m[5],m[1]+m[3]+m[5]];if(Math.max(...xs)<0||Math.min(...xs)>W||Math.max(...ys)<0||Math.min(...ys)>H)continue}/* 画面の外にある絵は描かない */
@@ -164,7 +165,10 @@ cv.addEventListener('pointermove',e=>{const o=ptrs.get(e.pointerId);if(!o)return
 const up=e=>{ptrs.delete(e.pointerId);pinch=0;if(down&&!down.moved&&ptrs.size===0&&performance.now()-down.t<500)pick(e.clientX,e.clientY);if(!ptrs.size){down=null;save()}};
 cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
 cv.addEventListener('wheel',e=>{e.preventDefault();S.fov=clamp(S.fov*Math.exp(e.deltaY*0.001),20,160);need()},{passive:false});
-function pick(x,y){let b=null,bd=22;for(const h of hits){const d=Math.hypot(h.x-x,h.y-y);if(d<bd||(d<bd+4&&b&&h.s.mag<b.mag-1)){bd=d;b=h.s}}if(b)showCard(b);else if(!$('card').hidden){$('card').hidden=true;sel=null;need()}else setImmersive(!isImm())}
+function pick(x,y){let b=null,bd=22;for(const h of hits){const d=Math.hypot(h.x-x,h.y-y);if(d<bd||(d<bd+4&&b&&h.s.mag<b.mag-1)){bd=d;b=h.s}}const lt=conLabelAt(x,y,1);if(lt)tapCon(lt);else if(b)showCard(b);else{const lc=conLabelAt(x,y);if(lc)tapCon(lc);else if(!$('card').hidden){$('card').hidden=true;sel=null;need()}else setImmersive(!isImm())}}
+/* 星座名のタップ: 絵と神話を出す。同じ星座名をもう一度タップすると消す */
+function conLabelAt(x,y,tight){let r=null,bd=1e9;for(const h of conHits){if(tight?(Math.abs(x-h.x)<=h.w/2+4&&y>=h.y-15&&y<=h.y+5):(Math.abs(x-h.x)<=h.w/2+14&&y>=h.y-24&&y<=h.y+12)){const d=Math.abs(x-h.x)+Math.abs(y-h.y);if(d<bd){bd=d;r=h.c}}}return r}
+function tapCon(c){if(artSel===c){artSel=null;if(selCon===c)hideMyth();need()}else showMyth(c)}
 
 /* ---------- 時刻・場所 ---------- */
 const p2=n=>String(n).padStart(2,'0');
@@ -188,9 +192,13 @@ const speed=$('speed'),speedOut=$('speedOut');
 function speedSeconds(){return Math.round(60*Math.pow(1440,(+speed.value)/100))}
 function showSpeed(){const seconds=speedSeconds();speedOut.textContent=seconds<3600?`1秒 = 約${Math.max(1,Math.round(seconds/60))}分`:`1秒 = 約${Math.round(seconds/3600*10)/10}時間`;S.speed=+speed.value}
 speed.value=S.speed??def.speed;showSpeed();speed.oninput=()=>{showSpeed();save()};
-$('artMode').value=S.art||'all';$('artMode').onchange=e=>{S.art=e.target.value;save();need()};
+/* 星座絵: 設定の選択と、上部の「星座絵」ボタン(見えている星座の絵をまとめて出す/隠す) */
+function artSync(){$('artMode').value=S.art;$('artBtn').setAttribute('aria-pressed',S.art==='all')}
+$('artMode').onchange=e=>{S.art=e.target.value;if(S.art==='off')artSel=null;save();artSync();need()};
+$('artBtn').onclick=()=>{if(S.art==='all'){S.art='sel';artSel=null}else S.art='all';save();artSync();need();toast(S.art==='all'?'見えている星座の絵をすべて表示します(新しく見える星座にも出ます)':'絵を隠しました。星座名をタップすると、その星座の絵が出ます')};
+artSync();
 [['tLines','lines'],['tCons','cons'],['tNames','names'],['tReal','real'],['tAuto','auto'],['tIntro','intro']].forEach(([id,k])=>{const el=$(id);el.checked=!!S[k];el.onchange=()=>{S[k]=el.checked?1:0;save();need()}});
-$('reset').onclick=()=>{try{localStorage.removeItem(KEY)}catch(e){}S=Object.assign({},def);$('artMode').value=S.art;lim.value=S.limit;limShow();speed.value=S.speed;showSpeed();setLoc(S.lat,S.lon,S.city);[['tLines','lines'],['tCons','cons'],['tNames','names'],['tReal','real'],['tAuto','auto'],['tIntro','intro']].forEach(([i,k])=>$(i).checked=!!S[k]);armIdle();startAR('quiet');toast('保存した設定を消去しました')};
+$('reset').onclick=()=>{try{localStorage.removeItem(KEY)}catch(e){}S=Object.assign({},def);artSel=null;artSync();lim.value=S.limit;limShow();speed.value=S.speed;showSpeed();setLoc(S.lat,S.lon,S.city);[['tLines','lines'],['tCons','cons'],['tNames','names'],['tReal','real'],['tAuto','auto'],['tIntro','intro']].forEach(([i,k])=>$(i).checked=!!S[k]);armIdle();startAR('quiet');toast('保存した設定を消去しました')};
 let tt;function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2600)}
 
 /* ---------- ジャイロ(スマホの向きに連動) ---------- */
@@ -218,7 +226,10 @@ arReset.onclick=()=>{if(!ar)return;S.arOff=0;hd=null;save();need();toast('方位
 /* 起動時の自動オン。iPhoneは許可の確認に画面の操作が必要なので、最初のタップで始める。
    Androidなどは、実際にセンサーの値が届いたときだけオンにする(PCではオンにならない) */
 function autoGyro(){if(!S.gyro)return;
- if(needPerm){toast('画面をタップすると、ジャイロ(向き連動)が始まります');document.addEventListener('click',()=>{if(S.gyro&&!ar)startAR('tap')},{capture:true,once:true});return}
+ /* iPhone: 許可の確認は画面の操作の中でしか出せない。起動メッセージの最中でも、最初のタップですぐ求める */
+ if(needPerm){const intro=$('intro');if(intro&&!intro.hidden)$('introHint').hidden=false;else toast('画面をタップすると、ジャイロ(向き連動)が始まります');
+  const go=()=>{document.removeEventListener('click',go,true);document.removeEventListener('touchend',go,true);if(S.gyro&&!ar)startAR('tap')};
+  document.addEventListener('click',go,true);document.addEventListener('touchend',go,true);return}
  if(!('DeviceOrientationEvent' in window))return;let pt;
  const evs=['deviceorientationabsolute','deviceorientation'];
  const probe=e=>{if(e.beta!=null&&(e.alpha!=null||e.webkitCompassHeading!=null)){evs.forEach(n=>removeEventListener(n,probe));clearTimeout(pt);oev=e.type==='deviceorientationabsolute'?'deviceorientationabsolute':'deviceorientation';if(S.gyro&&!ar)beginAR('quiet')}};
@@ -258,7 +269,7 @@ function lookAt(c){stopAR(false);const a=conAt(c,T);S.az=(a.az+360)%360;S.fov=cl
  else{const sh=m.hidden?0:m.offsetHeight/2/V.s/D;S.alt=clamp(Math.max(a.alt,12)-sh,-10,90)}
  save();need()}
 function refreshMyth(){if(!selCon)return;const st=conState(selCon),t=stateText(st);if($('mState').textContent!==t)$('mState').textContent=t;$('mWhen').hidden=st.k==='up'}
-function showMyth(c){selCon=c;$('mName').textContent=CONS[c][0];$('mSub').textContent=(MODERN.has(c)?'近世にできた星座の由来':'星座にまつわる神話')+'(略号 '+c+')';
+function showMyth(c){selCon=c;artSel=c;$('mName').textContent=CONS[c][0];$('mSub').textContent=(MODERN.has(c)?'近世にできた星座の由来':'星座にまつわる神話')+'(略号 '+c+')';
  $('mText').textContent=MYTH[c];$('mState').textContent='';refreshMyth();const box=$('myth');box.hidden=false;box.scrollTop=0;need()}
 function hideMyth(){selCon=null;$('myth').hidden=true;need()}
 function renderList(){const q=$('conQ').value.trim().toLowerCase(),ul=$('conUl');
@@ -299,7 +310,7 @@ $('tAuto').addEventListener('change',armIdle);
 ['pointerdown','keydown','input','change','wheel'].forEach(t=>addEventListener(t,()=>{if(t==='keydown'&&isImm())setImmersive(false);else armIdle()},true));
 
 /* ---------- 起動 ---------- */
-setLoc(S.lat,S.lon,S.city);syncTime();addEventListener('resize',need);armIdle();showIntro(autoGyro);
+setLoc(S.lat,S.lon,S.city);syncTime();addEventListener('resize',need);armIdle();showIntro(()=>{setTimeout(()=>{if(!S.hint&&S.cons&&Object.keys(ARTS).length){S.hint=1;save();toast('星座名をタップすると、絵と神話が出ます(✦つきが、絵のある星座です)')}},4000)});autoGyro();
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 need();
 })();
