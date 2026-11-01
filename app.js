@@ -13,15 +13,15 @@ if((stored.ver||1)<3)S.limit=def.limit;
 S.ver=VER;
 if(!CITIES.some(city=>city[0]===S.city)){const old=CITIES.find(city=>city[0].endsWith(`（${S.city}）`));S.city=old?old[0]:def.city}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
-let T=Date.now(),baseT=T,playing=false,last=0,ar=false,W=0,H=0,V={},hits=[],sel=null,selCon=null,dirty=false,starting=false;
+const fb=new Map();let posKey='',posT=0,T=Date.now(),baseT=T,playing=false,last=0,ar=false,W=0,H=0,V={},hits=[],sel=null,selCon=null,dirty=false,starting=false;
 
 /* ---------- 星表 ---------- */
-const stars=STAR_DATA.map(r=>({k:r[0],ra:r[1]*15,dec:r[2],mag:r[3],bv:r[4],con:r[5]}));
+const stars=STAR_DATA.map(r=>({k:r[0],ra:r[1]*15,dec:r[2],mag:r[3],bv:r[4],con:r[5],r0:3.0*Math.pow(10,-0.11*r[3])}));
 const FAMOUS=new Set(['Sirius','Canopus','Arcturus','Rigil Kent','Vega','Capella','Rigel','Procyon','Betelgeuse','Achernar','Altair','Aldebaran','Antares','Spica','Pollux','Fomalhaut','Deneb','Regulus','Castor','Polaris','Acrux','Dubhe','Algol','Alnilam','Bellatrix','Denebola','Mizar','Shaula']);
 const byKey={};stars.forEach(s=>byKey[s.k]=s);
 const conStars={};for(const c in CONS){const set=new Set();CONS[c][1].forEach(p=>p.forEach(k=>set.add(k)));conStars[c]=[...set].map(k=>byKey[k]).filter(Boolean)}
 for(const c in CONS)CONS[c][1].forEach(p=>p.forEach(k=>{if(byKey[k])byKey[k].ln=1}));
-(window.STAR_EXTRA||[]).forEach(r=>stars.push({k:null,ra:r[0]*15,dec:r[1],mag:r[2],bv:r[3],con:''}));
+(window.STAR_EXTRA||[]).forEach(r=>stars.push({k:null,ra:r[0]*15,dec:r[1],mag:r[2],bv:r[3],con:'',r0:3.0*Math.pow(10,-0.11*r[2])}));
 
 /* ---------- 天文計算 ---------- */
 const jd=t=>t/86400000+2440587.5;
@@ -72,7 +72,10 @@ function draw(){dirty=false;const dpr=window.devicePixelRatio||1;
  ctx.font='600 15px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#e8b45a';
  [['北',0],['東',90],['南',180],['西',270]].forEach(([t,a])=>{const p=proj(a*D,3*D);if(p)ctx.fillText(t,p[0],p[1])});
  // 位置計算
- for(const s of stars){if(s.mag>eff+0.5&&s.k===null){s.v=0;continue}const q=yrs?precess(s,yrs):[s.ra,s.dec],h=eq2hor(q[0],q[1],L,S.lat);s.az=h[0];s.alt=h[1];s.v=h[1]>-0.02}
+ /* 星の位置は、時刻・場所・見える暗さが変わらない限り同じ。ジャイロや指の操作(向きだけが変わる)では、毎回は計算し直さない */
+ const pk=S.lat+'|'+S.lon+'|'+Math.round(eff*4);
+ if(pk!==posKey||Math.abs(T-posT)>2000){posKey=pk;posT=T;
+  for(const s of stars){if(s.mag>eff+0.5&&s.k===null){s.v=0;continue}const q=yrs?precess(s,yrs):[s.ra,s.dec],h=eq2hor(q[0],q[1],L,S.lat);s.az=h[0];s.alt=h[1];s.v=h[1]>-0.02;const ca=Math.cos(h[1]);s.vx=ca*Math.sin(h[0]);s.vy=ca*Math.cos(h[0]);s.vz=Math.sin(h[1])}}
  drawArt(1-tw);
  // 星座線
  if(S.lines){ctx.strokeStyle=`rgba(${mix([110,150,205],[255,255,255],dy)},${0.5+0.1*dy})`;ctx.lineWidth=1;ctx.beginPath();
@@ -81,11 +84,17 @@ function draw(){dirty=false;const dpr=window.devicePixelRatio||1;
  if(selCon&&CONS[selCon]){ctx.strokeStyle='rgba(232,180,90,.95)';ctx.lineWidth=2.2;ctx.beginPath();
   for(const [a,b] of CONS[selCon][1]){const A=byKey[a],B=byKey[b];if(!A||!B||!A.v||!B.v)continue;const p=proj(A.az,A.alt),q=proj(B.az,B.alt);if(p&&q){ctx.moveTo(p[0],p[1]);ctx.lineTo(q[0],q[1])}}ctx.stroke();ctx.lineWidth=1}
  // 星
- const nm=2.4+(110/S.fov-1)*0.9;
- for(const s of stars){if(!s.v||s.mag>eff+(s.ln?1:0))continue;const p=proj(s.az,s.alt);if(!p||p[0]<-20||p[0]>W+20||p[1]<-20||p[1]>H+20)continue;
-  const r=Math.max(0.7,3.0*Math.pow(10,-0.11*s.mag)*V.z),al=clamp((eff-s.mag)/1.2+0.25,0.25,1)*(s.mag>eff-1.5?0.85:1),c=starColor(s);
-  ctx.fillStyle=`rgba(${c},${al})`;if(s.mag<2.5){ctx.shadowColor=`rgba(${c},.9)`;ctx.shadowBlur=r*3}ctx.beginPath();ctx.arc(p[0],p[1],r,0,6.283);ctx.fill();ctx.shadowBlur=0;
+ const nm=2.4+(110/S.fov-1)*0.9,cosMax=Math.cos(Math.min(3,2*Math.atan((Math.hypot(W,H)/2+30)/(2*V.s)))),vc=V.c;
+ for(const s of stars){if(!s.v||s.mag>eff+(s.ln?1:0))continue;if(s.vx*vc[0]+s.vy*vc[1]+s.vz*vc[2]<cosMax)continue;/* 視野の外の星は、投影の計算もしない */const p=proj(s.az,s.alt);if(!p||p[0]<-20||p[0]>W+20||p[1]<-20||p[1]>H+20)continue;
+  const r=Math.max(0.7,s.r0*V.z),al=clamp((eff-s.mag)/1.2+0.25,0.25,1)*(s.mag>eff-1.5?0.85:1);
+  if(s.mag>=3&&r<1.5){/* 暗い星は、色と明るさが近いものをまとめて、四角でいっぺんに描く(1つずつ描くより軽い) */
+   const q=(Math.round(clamp(s.bv,-0.4,2)*5)+2)*1000+Math.round(s.mag)*10+Math.round(al*8);let a=fb.get(q);if(!a)fb.set(q,a=[]);a.push(p[0]-r,p[1]-r,2*r);
+   if(s.k)hits.push({x:p[0],y:p[1],s});continue}
+  if(s.cr!==S.real){s.cc=starColor(s);s.cs=s.cc.join(',');s.cr=S.real}
+  ctx.fillStyle=`rgba(${s.cs},${al.toFixed(2)})`;
+  if(s.mag<2.5){ctx.shadowColor=`rgba(${s.cs},.9)`;ctx.shadowBlur=r*3}ctx.beginPath();ctx.arc(p[0],p[1],r,0,6.283);ctx.fill();ctx.shadowBlur=0;
   if(s.k)hits.push({x:p[0],y:p[1],s});}
+ for(const [q,a] of fb){if(!a.length)continue;const bvq=(Math.floor(q/1000)-2)/5,mg=Math.floor(q%1000/10),al=(q%10)/8;ctx.fillStyle=`rgba(${starColor({bv:bvq,mag:mg}).join(',')},${al.toFixed(2)})`;ctx.beginPath();for(let i=0;i<a.length;i+=3)ctx.rect(a[i],a[i+1],a[i+2],a[i+2]);ctx.fill();a.length=0}
  // 星の名前(有名な星のみ。選択中は昼でも常に表示)
  if(S.names){ctx.font='12px sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';ctx.shadowColor='rgba(0,0,0,.65)';ctx.shadowBlur=3;
   for(const s of stars){if(!s.k||!s.v||s.mag>S.limit||!(FAMOUS.has(s.k)||(S.fov<70&&JA[s.k])))continue;const p=proj(s.az,s.alt);if(!p||p[0]<-20||p[0]>W+20||p[1]<-20||p[1]>H+20)continue;
@@ -121,6 +130,8 @@ function drawArt(nk){const c0=selCon||(sel&&sel.con),mode=S.art;let busy=false;
  for(const c in ARTS){const t=mode==='off'?0:c===c0?1:mode==='all'?0.5:0;let cur=artA[c]||0;
   if(Math.abs(t-cur)>0.01){cur+=(t-cur)*0.2;busy=true}else cur=t;artA[c]=cur;
   if(cur<0.02||nk<0.02)continue;const img=getArt(c);if(!img)continue;const m=artFit(c);if(!m)continue;
+  {const xs=[m[4],m[0]+m[4],m[2]+m[4],m[0]+m[2]+m[4]],ys=[m[5],m[1]+m[5],m[3]+m[5],m[1]+m[3]+m[5]];if(Math.max(...xs)<0||Math.min(...xs)>W||Math.max(...ys)<0||Math.min(...ys)>H)continue}/* 画面の外にある絵は描かない */
+ 
   ctx.save();ctx.globalCompositeOperation='lighter';ctx.globalAlpha=Math.min(1,0.75*cur*nk);ctx.transform(m[0],m[1],m[2],m[3],m[4],m[5]);ctx.drawImage(img,0,0,1,1);ctx.restore()}
  if(busy)need()}
 function need(){if(!dirty){dirty=true;requestAnimationFrame(frame)}}
