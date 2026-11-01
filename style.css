@@ -68,3 +68,6 @@ body.immersive #bar,body.immersive #panel{opacity:0;visibility:hidden;transition
 @keyframes ilIn{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 @keyframes ilOut{from{transform:scaleX(1);opacity:1}to{transform:scaleX(1.6);opacity:0}}
 @media(prefers-reduced-motion:reduce){#intro,#intro .ch,#intro .il,#introOff,#intro.out,#intro.out .ch,#intro.out .il{animation-duration:.01s!important;animation-delay:0s!important}#intro .il{transform:none}#intro.out{transition:opacity .3s;opacity:0}}
+#introHint{margin:0;font-size:13px;letter-spacing:.1em;color:#e8dcc0;opacity:0;animation:inBg .8s ease-out 1s both}
+#intro.out #introHint{animation:inBg .3s ease-in reverse both}
+#toast{z-index:60}
