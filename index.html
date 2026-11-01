@@ -14,6 +14,8 @@
 </header>
 <aside id="card" hidden><button id="cardClose" aria-label="閉じる">×</button><h2 id="cName"></h2><p id="cSub"></p><dl id="cList"></dl><p id="cNote"></p></aside>
 <div id="toast" role="status"></div>
+<button id="arReset" type="button" hidden aria-label="方位をセンサーの向きに戻す">方位リセット</button>
+<div id="intro" hidden role="status" aria-label="カーテンを閉めたままでも、シャッターを閉めたままでも、いつでも星を見ることができます。"><i class="il"></i><div class="txt" aria-hidden="true"></div><i class="il"></i><button id="introOff" type="button">次回から表示しない</button></div>
 <button id="uiShow" type="button" hidden aria-label="操作画面を表示"></button>
 <section id="myth" hidden aria-label="星座の神話">
  <button id="mythClose" aria-label="神話カードを閉じる">×</button>
@@ -42,6 +44,7 @@
   <label><input type="checkbox" id="tLines" checked>星座線</label><label><input type="checkbox" id="tCons" checked>星座名</label>
   <label><input type="checkbox" id="tNames">星の名前</label><label><input type="checkbox" id="tReal" checked>現実に近い色</label>
   <label><input type="checkbox" id="tAuto" checked>操作がないと上下の表示を隠す</label>
+  <label><input type="checkbox" id="tIntro" checked>起動時のメッセージを表示</label>
  </div>
  <div class="row latlon"><label>緯度<input id="lat" type="number" step="0.01"></label><label>経度<input id="lon" type="number" step="0.01"></label>
   <button id="geo">現在地を使う</button></div>
