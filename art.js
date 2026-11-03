@@ -29,5 +29,15 @@ window.ART={
  Lib:{src:'art/Lib.webp',flip:0,a:[['Zubeneschamali',0.50,0.26],['Zubenelgenubi',0.78,0.47,2],['Zubenelhakrabi',0.26,0.46,2],['Brachium',0.50,0.66],['Upsilon Lib',0.38,0.70],['Tau Lib',0.50,0.92]]},
  Cap:{src:'art/Cap.webp',flip:1,a:[['Prima Giedi',0.72,0.20],['Dabih',0.40,0.12],['Psi Cap',0.42,0.45],['Omega Cap',0.38,0.55],['Zeta Cap',0.52,0.60],['Deneb Algedi',0.90,0.75],['Nashira',0.80,0.60],['Theta Cap',0.66,0.50]]},
  Aqr:{src:'art/Aqr.webp',flip:0,a:[['Sadalsuud',0.72,0.30],['Sadalmelik',0.60,0.32],['Albali',0.88,0.60],['Sadachbia',0.48,0.28],['Zeta1 Aqr',0.38,0.20],['Eta Aqr',0.38,0.30],['Lambda Aqr',0.33,0.40],['Psi2 Aqr',0.32,0.65],['88 Aqr',0.28,0.88],['104 Aqr',0.22,0.78]]},
- Psc:{src:'art/Psc.webp',flip:0,a:[['Alrescha',0.43,0.83],['Omicron Psc',0.13,0.68],['Eta Psc',0.35,0.52],['Phi Psc',0.40,0.38],['Tau Psc',0.22,0.33],['Epsilon Psc',0.25,0.80],['Omega Psc',0.78,0.65],['Theta Psc',0.90,0.60],['Gamma Psc',0.90,0.80]]}
+ Psc:{src:'art/Psc.webp',flip:0,a:[['Alrescha',0.43,0.83],['Omicron Psc',0.13,0.68],['Eta Psc',0.35,0.52],['Phi Psc',0.40,0.38],['Tau Psc',0.22,0.33],['Epsilon Psc',0.25,0.80],['Omega Psc',0.78,0.65],['Theta Psc',0.90,0.60],['Gamma Psc',0.90,0.80]]},
+ Ari:{src:'art/Ari.webp',flip:1,a:[['Mesarthim',0.6659,0.2073],['Sheratan',0.6220,0.2313],['Hamal',0.5183,0.3230],['41 Ari',0.2041,0.4466]]},
+ Cet:{src:'art/Cet.webp',flip:0,a:[['Menkar',0.0797,0.4306],['Kaffaljidhma',0.3349,0.5183],['Mira',0.5183,0.6061],['Baten Kaitos',0.7576,0.6539],['Diphda',0.8692,0.1356],['Deneb Kaitos Shemali',0.6619,0.2073],['Nu Cet',0.1826,0.5207],['Xi2 Cet',0.1483,0.4490],['Mu Cet',0.0662,0.5112],['Delta Cet',0.2767,0.5997],['Tau Cet',0.7568,0.5167],['Dheneb',0.7480,0.2767]]},
+ Cen:{src:'art/Cen.webp',flip:0,a:[['Iota Cen',0.3987,0.0957],['Menkent',0.3190,0.2313],['Nu Cen',0.4274,0.3708],['Eta Cen',0.1914,0.4147],['Zeta Cen',0.4115,0.5303],['Muhlifain',0.7576,0.5829],['Sigma Cen',0.8102,0.6276],['Delta Cen',0.8939,0.6611],['Mu Cen',0.3900,0.3788]]},
+ Cru:{src:'art/Cru.webp',flip:0,a:[['Gacrux',0.50,0.04],['Acrux',0.50,0.97],['Mimosa',0.17,0.40],['Imai',0.85,0.40]]},
+ Cnc:{src:'art/Cnc.webp',flip:0,a:[['Asellus Australis',0.50,0.58],['Asellus Borealis',0.50,0.38],['Iota Cnc',0.46,0.13],['Beta Cnc',0.81,0.88],['Acubens',0.41,0.84]]},
+ UMi:{src:'art/UMi.webp',flip:1,a:[['Polaris',0.97,0.47,2],['Yildun',0.80,0.50],['Epsilon UMi',0.70,0.47],['Zeta UMi',0.55,0.40],['Eta UMi',0.55,0.62],['Pherkad',0.28,0.52],['Kochab',0.37,0.45]]},
+ CrB:{src:'art/CrB.webp',flip:0,a:[['Theta CrB',0.50,0.17],['Nusakan',0.50,0.46],['Alphecca',0.50,0.66,2],['Gamma CrB',0.40,0.68],['Delta CrB',0.28,0.68],['Epsilon CrB',0.19,0.68],['Iota CrB',0.08,0.38]]},
+ Del:{src:'art/Del.webp',flip:0,a:[['Gamma Del',0.30,0.19],['Delta Del',0.55,0.38],['Rotanev',0.75,0.45],['Sulaiman Del',0.60,0.20],['Epsilon Del',0.95,0.97]]},
+ Sge:{src:'art/Sge.webp',flip:0,a:[['Gamma Sge',0.08,0.93,2],['Delta Sge',0.58,0.42],['Sham',0.95,0.12],['Beta Sge',0.90,0.18]]},
+ Dra:{src:'art/Dra.webp',flip:1,a:[['Eltanin',0.20,0.15,2],['Rastaban',0.30,0.10],['Nu2 Dra',0.20,0.30],['Grumium',0.15,0.24],['Altais',0.22,0.41],['Phi Dra',0.26,0.46],['Zeta Dra',0.36,0.49],['Eta Dra',0.43,0.51],['Theta Dra',0.47,0.53],['Edasich',0.52,0.56],['Thuban',0.63,0.64],['Kappa Dra',0.74,0.68],['Giausar',0.80,0.70]]}
 };
