@@ -14,7 +14,7 @@ if((stored.ver||1)<4)S.art=def.art;/* 星座絵は「タップした星座だけ
 S.ver=VER;
 if(!CITIES.some(city=>city[0]===S.city)){const old=CITIES.find(city=>city[0].endsWith(`（${S.city}）`));S.city=old?old[0]:def.city}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
-const fb=new Map();let posKey='',posT=0,T=Date.now(),baseT=T,playing=false,last=0,ar=false,W=0,H=0,V={},hits=[],sel=null,selCon=null,artSel=null,conHits=[],dirty=false,starting=false;
+const fb=new Map();let posKey='',posT=0,T=Date.now(),baseT=T,playing=false,last=0,ar=false,W=0,H=0,V={},hits=[],sel=null,selCon=null,artSel=null,conHits=[],dirty=false,starting=false,vis=[];
 
 /* ---------- 星表 ---------- */
 const stars=STAR_DATA.map(r=>({k:r[0],ra:r[1]*15,dec:r[2],mag:r[3],bv:r[4],con:r[5],r0:3.0*Math.pow(10,-0.11*r[3])}));
@@ -56,7 +56,7 @@ function proj(az,alt){const ca=Math.cos(alt),v=[ca*Math.sin(az),ca*Math.cos(az),
 
 /* ---------- 描画 ---------- */
 const mix=(a,b,t)=>a.map((v,i)=>Math.round(v+(b[i]-v)*t));
-function draw(){dirty=false;const dpr=window.devicePixelRatio||1;
+function draw(){dirty=false;const dpr=Math.min(window.devicePixelRatio||1,2)*qs;/* 3倍画面でも2倍までで描く(描く面積が約半分になり、フリーズしにくい) */
  if(cv.width!==Math.round(innerWidth*dpr)||cv.height!==Math.round(innerHeight*dpr)){cv.width=Math.round(innerWidth*dpr);cv.height=Math.round(innerHeight*dpr)}
  W=innerWidth;H=innerHeight;ctx.setTransform(dpr,0,0,dpr,0,0);setView();
  const J=jd(T),n=J-2451545,L=lstDeg(J,S.lon),yrs=n/365.25;
@@ -76,7 +76,8 @@ function draw(){dirty=false;const dpr=window.devicePixelRatio||1;
  /* 星の位置は、時刻・場所・見える暗さが変わらない限り同じ。ジャイロや指の操作(向きだけが変わる)では、毎回は計算し直さない */
  const pk=S.lat+'|'+S.lon+'|'+Math.round(eff*4);
  if(pk!==posKey||Math.abs(T-posT)>2000){posKey=pk;posT=T;
-  for(const s of stars){if(s.mag>eff+0.5&&s.k===null){s.v=0;continue}const q=yrs?precess(s,yrs):[s.ra,s.dec],h=eq2hor(q[0],q[1],L,S.lat);s.az=h[0];s.alt=h[1];s.v=h[1]>-0.02;const ca=Math.cos(h[1]);s.vx=ca*Math.sin(h[0]);s.vy=ca*Math.cos(h[0]);s.vz=Math.sin(h[1])}}
+  for(const s of stars){if(s.mag>eff+0.5&&s.k===null){s.v=0;continue}const q=yrs?precess(s,yrs):[s.ra,s.dec],h=eq2hor(q[0],q[1],L,S.lat);s.az=h[0];s.alt=h[1];s.v=h[1]>-0.02;const ca=Math.cos(h[1]);s.vx=ca*Math.sin(h[0]);s.vy=ca*Math.cos(h[0]);s.vz=Math.sin(h[1])}
+  vis=stars.filter(s=>s.v&&s.mag<=eff+(s.ln?1:0)+0.13)/* 見える星だけの一覧(毎回8,800個を調べない) */}
  drawArt(1-tw);
  // 星座線
  if(S.lines){ctx.strokeStyle=`rgba(${mix([110,150,205],[255,255,255],dy)},${0.5+0.1*dy})`;ctx.lineWidth=1;ctx.beginPath();
@@ -86,27 +87,27 @@ function draw(){dirty=false;const dpr=window.devicePixelRatio||1;
   for(const [a,b] of CONS[selCon][1]){const A=byKey[a],B=byKey[b];if(!A||!B||!A.v||!B.v)continue;const p=proj(A.az,A.alt),q=proj(B.az,B.alt);if(p&&q){ctx.moveTo(p[0],p[1]);ctx.lineTo(q[0],q[1])}}ctx.stroke();ctx.lineWidth=1}
  // 星
  const nm=2.4+(110/S.fov-1)*0.9,cosMax=Math.cos(Math.min(3,2*Math.atan((Math.hypot(W,H)/2+30)/(2*V.s)))),vc=V.c;
- for(const s of stars){if(!s.v||s.mag>eff+(s.ln?1:0))continue;if(s.vx*vc[0]+s.vy*vc[1]+s.vz*vc[2]<cosMax)continue;/* 視野の外の星は、投影の計算もしない */const p=proj(s.az,s.alt);if(!p||p[0]<-20||p[0]>W+20||p[1]<-20||p[1]>H+20)continue;
+ for(const s of vis){if(s.mag>eff+(s.ln?1:0))continue;if(s.vx*vc[0]+s.vy*vc[1]+s.vz*vc[2]<cosMax)continue;/* 視野の外の星は、投影の計算もしない */const p=proj(s.az,s.alt);if(!p||p[0]<-20||p[0]>W+20||p[1]<-20||p[1]>H+20)continue;
   const r=Math.max(0.7,s.r0*V.z),al=clamp((eff-s.mag)/1.2+0.25,0.25,1)*(s.mag>eff-1.5?0.85:1);
   if(s.mag>=3&&r<1.5){/* 暗い星は、色と明るさが近いものをまとめて、四角でいっぺんに描く(1つずつ描くより軽い) */
    const q=(Math.round(clamp(s.bv,-0.4,2)*5)+2)*1000+Math.round(s.mag)*10+Math.round(al*8);let a=fb.get(q);if(!a)fb.set(q,a=[]);a.push(p[0]-r,p[1]-r,2*r);
    if(s.k)hits.push({x:p[0],y:p[1],s});continue}
   if(s.cr!==S.real){s.cc=starColor(s);s.cs=s.cc.join(',');s.cr=S.real}
   ctx.fillStyle=`rgba(${s.cs},${al.toFixed(2)})`;
-  if(s.mag<2.5){ctx.shadowColor=`rgba(${s.cs},.9)`;ctx.shadowBlur=r*3}ctx.beginPath();ctx.arc(p[0],p[1],r,0,6.283);ctx.fill();ctx.shadowBlur=0;
+  if(s.mag<2){ctx.shadowColor=`rgba(${s.cs},.9)`;ctx.shadowBlur=r*3}ctx.beginPath();ctx.arc(p[0],p[1],r,0,6.283);ctx.fill();ctx.shadowBlur=0;
   if(s.k)hits.push({x:p[0],y:p[1],s});}
  for(const [q,a] of fb){if(!a.length)continue;const bvq=(Math.floor(q/1000)-2)/5,mg=Math.floor(q%1000/10),al=(q%10)/8;ctx.fillStyle=`rgba(${starColor({bv:bvq,mag:mg}).join(',')},${al.toFixed(2)})`;ctx.beginPath();for(let i=0;i<a.length;i+=3)ctx.rect(a[i],a[i+1],a[i+2],a[i+2]);ctx.fill();a.length=0}
  // 星の名前(有名な星のみ。選択中は昼でも常に表示)
- if(S.names){ctx.font='12px sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';ctx.shadowColor='rgba(0,0,0,.65)';ctx.shadowBlur=3;
+ if(S.names){ctx.font='12px sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';ctx.strokeStyle='rgba(0,0,0,.6)';ctx.lineWidth=3;ctx.lineJoin='round';/* 文字の縁取り(ぼかしの影より軽い) */
   for(const s of stars){if(!s.k||!s.v||s.mag>S.limit||!(FAMOUS.has(s.k)||(S.fov<70&&JA[s.k])))continue;const p=proj(s.az,s.alt);if(!p||p[0]<-20||p[0]>W+20||p[1]<-20||p[1]>H+20)continue;
    const r=Math.max(0.7,3.0*Math.pow(10,-0.11*s.mag)*V.z);
    if(s.mag>eff){ctx.fillStyle='rgba(255,255,255,.55)';ctx.beginPath();ctx.arc(p[0],p[1],1.6,0,6.283);ctx.fill();hits.push({x:p[0],y:p[1],s})}
-   ctx.fillStyle='rgba(240,236,224,.95)';ctx.fillText((JA[s.k]||s.k).replace(/\(.*\)/,''),p[0]+r+5,p[1]-r-2)}
+   ctx.fillStyle='rgba(240,236,224,.95)';const tx=(JA[s.k]||s.k).replace(/\(.*\)/,'');ctx.strokeText(tx,p[0]+r+5,p[1]-r-2);ctx.fillText(tx,p[0]+r+5,p[1]-r-2)}
   ctx.shadowBlur=0;ctx.textBaseline='alphabetic'}
  // 星座名
- conHits.length=0;if(S.cons||selCon){ctx.font='13px sans-serif';ctx.textAlign='center';ctx.shadowColor='rgba(0,0,0,.6)';ctx.shadowBlur=3;ctx.fillStyle=`rgb(${mix([232,180,90],[255,240,190],dy)})`;
+ conHits.length=0;if(S.cons||selCon){ctx.font='13px sans-serif';ctx.textAlign='center';ctx.strokeStyle='rgba(0,0,0,.6)';ctx.lineWidth=3;ctx.lineJoin='round';ctx.fillStyle=`rgb(${mix([232,180,90],[255,240,190],dy)})`;
   for(const c in CONS){const L2=conStars[c];if(!L2.length||(!S.cons&&c!==selCon))continue;let x=0,y=0,z=0,m=0;for(const s of L2)if(s.v){x+=Math.cos(s.alt)*Math.sin(s.az);y+=Math.cos(s.alt)*Math.cos(s.az);z+=Math.sin(s.alt);m++}
-   if(m<L2.length*0.6)continue;const az=(Math.atan2(x,y)+2*Math.PI)%(2*Math.PI),al=Math.atan2(z,Math.hypot(x,y)),p=proj(az,al);if(p){const nm=CONS[c][0]+(ARTS[c]?' ✦':'');ctx.fillText(nm,p[0],p[1]+16);conHits.push({c,x:p[0],y:p[1]+16,w:ctx.measureText(nm).width})}}ctx.shadowBlur=0}
+   if(m<L2.length*0.6)continue;const az=(Math.atan2(x,y)+2*Math.PI)%(2*Math.PI),al=Math.atan2(z,Math.hypot(x,y)),p=proj(az,al);if(p){const nm=CONS[c][0]+(ARTS[c]?' ✦':'');ctx.strokeText(nm,p[0],p[1]+16);ctx.fillText(nm,p[0],p[1]+16);conHits.push({c,x:p[0],y:p[1]+16,w:ctx.measureText(nm).width})}}ctx.shadowBlur=0}
  // 太陽・月
  if(sh[1]>-0.05){const p=proj(sh[0],sh[1]);if(p){ctx.shadowColor='#ffd27a';ctx.shadowBlur=30;ctx.fillStyle='#ffe9a8';ctx.beginPath();ctx.arc(p[0],p[1],9*V.z,0,6.283);ctx.fill();ctx.shadowBlur=0}}
  if(mh[1]>-0.05){const p=proj(mh[0],mh[1]);if(p)moon(p[0],p[1],8*V.z,mp.el)}
@@ -127,16 +128,31 @@ function artFit(c){const o=ARTS[c],P=[],Q=[],Wt=[],fl=o.flip?-1:1;let vis=0;
  P.forEach((p,i)=>{const px=p[0]-mp[0],py=p[1]-mp[1],qx=Q[i][0]-mq[0],qy=Q[i][1]-mq[1];nr+=Wt[i]*(px*qx+py*qy);ni+=Wt[i]*(px*qy-py*qx);dn+=Wt[i]*(px*px+py*py)});
  const ar=nr/dn,ai=ni/dn,sc=Math.hypot(ar,ai);if(!(sc>20&&sc<8000))return null;
  return [ar,ai,-fl*ai,fl*ar,mq[0]-ar*mp[0]+ai*mp[1],mq[1]-ai*mp[0]-ar*mp[1]]}
-function drawArt(nk){const cs=[artSel,sel&&sel.con],mode=S.art;let busy=false;
+const lay=document.createElement('canvas'),lctx=lay.getContext('2d');
+function drawArt(nk){const cs=[artSel,sel&&sel.con],mode=S.art,jobs=[];let busy=false;
  for(const c in ARTS){const t=mode==='off'?0:cs.includes(c)?1:mode==='all'?0.5:0;let cur=artA[c]||0;
   if(Math.abs(t-cur)>0.01){cur+=(t-cur)*0.2;busy=true}else cur=t;artA[c]=cur;
-  if(cur<0.02||nk<0.02)continue;const img=getArt(c);if(!img)continue;const m=artFit(c);if(!m)continue;
+  if(cur<0.02||nk<0.02)continue;const m=artFit(c);if(!m)continue;
   {const xs=[m[4],m[0]+m[4],m[2]+m[4],m[0]+m[2]+m[4]],ys=[m[5],m[1]+m[5],m[3]+m[5],m[1]+m[3]+m[5]];if(Math.max(...xs)<0||Math.min(...xs)>W||Math.max(...ys)<0||Math.min(...ys)>H)continue}/* 画面の外にある絵は描かない */
- 
-  ctx.save();ctx.globalCompositeOperation='lighter';ctx.globalAlpha=Math.min(1,0.75*cur*nk);ctx.transform(m[0],m[1],m[2],m[3],m[4],m[5]);ctx.drawImage(img,0,0,1,1);ctx.restore()}
+  const img=getArt(c);if(!img)continue;/* 画像は、実際に描くときに初めて読み込む(全36枚を一度にメモリへ載せない) */
+  jobs.push([m,img,Math.min(1,0.75*cur*nk)])}
+ if(jobs.length===1){const [m,img,al]=jobs[0];ctx.save();ctx.globalCompositeOperation='lighter';ctx.globalAlpha=al;ctx.transform(m[0],m[1],m[2],m[3],m[4],m[5]);ctx.drawImage(img,0,0,1,1);ctx.restore()}
+ else if(jobs.length>1){/* 2枚以上のときは、半分の解像度の別の面にまとめて描いてから、1回だけ重ねる(絵はやわらかいので見た目はほぼ同じで、描く面積は約1/4) */
+  const k=ctx.getTransform().a*0.5,lw=Math.max(1,Math.round(W*k)),lh=Math.max(1,Math.round(H*k));
+  if(lay.width!==lw||lay.height!==lh){lay.width=lw;lay.height=lh}else lctx.clearRect(0,0,lw,lh);
+  lctx.setTransform(k,0,0,k,0,0);lctx.globalCompositeOperation='lighter';
+  for(const [m,img,al] of jobs){lctx.save();lctx.globalAlpha=al;lctx.transform(m[0],m[1],m[2],m[3],m[4],m[5]);lctx.drawImage(img,0,0,1,1);lctx.restore()}
+  ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.globalCompositeOperation='lighter';ctx.globalAlpha=1;ctx.drawImage(lay,0,0,cv.width,cv.height);ctx.restore()}
  if(busy)need()}
-function need(){if(!dirty){dirty=true;requestAnimationFrame(frame)}}
-function frame(now){if(playing){const dt=Math.min(now-(last||now),100);last=now;T+=dt*speedSeconds();syncTime();dirty=true}
+let force=true,lastSig='',qs=1,ema=30,prevD=0;
+function need(){force=true;if(!dirty){dirty=true;requestAnimationFrame(frame)}}
+let lastD=0;
+function frame(now){if((ar||playing)&&now-lastD<28){requestAnimationFrame(frame);return}/* ジャイロ・再生中は約30回/秒まで(負荷を半分に) */lastD=now;
+ const sig=S.az.toFixed(2)+'|'+S.alt.toFixed(2)+'|'+S.fov.toFixed(1);
+ if(ar&&!playing&&!force&&sig===lastSig){requestAnimationFrame(frame);return}/* 向きが変わっていなければ描き直さない(スマホを持って静止しているとき) */
+ if(sig!==lastSig&&prevD&&now-prevD<200){ema=ema*0.9+(now-prevD)*0.1;if(ema>45&&qs>0.6){qs=Math.max(0.6,qs*0.8);ema=30}}/* 動かしている間のコマ間隔が長い=重い端末。解像度を段階的に下げる */
+ prevD=now;lastSig=sig;force=false;
+ if(playing){const dt=Math.min(now-(last||now),100);last=now;T+=dt*speedSeconds();syncTime();dirty=true}
  draw();if(playing||ar){requestAnimationFrame(frame);dirty=true}}
 
 /* ---------- 情報カード ---------- */
@@ -204,7 +220,8 @@ let tt;function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on'
 /* ---------- ジャイロ(スマホの向きに連動) ---------- */
 let hd=null,gotOri=false,oev='ondeviceorientationabsolute' in window?'deviceorientationabsolute':'deviceorientation',oriT=0;
 function onOri(e){let h=e.webkitCompassHeading;if(h==null&&e.alpha!=null)h=(360-e.alpha)%360;if(h==null||e.beta==null)return;
- hd=hd==null?h:hd+((((h-hd)%360)+540)%360-180)*0.25;gotOri=true;S.az=((hd+S.arOff)%360+360)%360;S.alt=clamp(e.beta-90,-30,90)}
+ hd=hd==null?h:hd+((((h-hd)%360)+540)%360-180)*0.25;gotOri=true;const na=((hd+S.arOff)%360+360)%360,nl=clamp(e.beta-90,-30,90);
+ if(Math.abs(((na-S.az+540)%360)-180)>0.08||Math.abs(nl-S.alt)>0.08){S.az=na;S.alt=nl}/* センサーの細かい揺れ(0.08°未満)は無視して、止まっているときは再描画しない */}
 const arBtn=$('ar'),arReset=$('arReset'),needPerm=typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function';
 function arUi(on){arReset.hidden=!on;arBtn.textContent=on?'ジャイロをオフにする':'ジャイロ(向きに連動)をオンにする';arBtn.setAttribute('aria-pressed',on)}
 function beginAR(mode){ar=true;hd=null;gotOri=false;S.arOff=0;S.fov=AR_FOV;addEventListener(oev,onOri);arUi(true);
@@ -311,6 +328,6 @@ $('tAuto').addEventListener('change',armIdle);
 
 /* ---------- 起動 ---------- */
 setLoc(S.lat,S.lon,S.city);syncTime();addEventListener('resize',need);armIdle();showIntro(()=>{setTimeout(()=>{if(!S.hint&&S.cons&&Object.keys(ARTS).length){S.hint=1;save();toast('星座名をタップすると、絵と神話が出ます(✦つきが、絵のある星座です)')}},4000)});autoGyro();
-if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').then(()=>navigator.serviceWorker.ready).then(r=>setTimeout(()=>r.active&&r.active.postMessage('art'),6000)).catch(()=>{});/* 起動の6秒後から、星座絵をオフライン用に1枚ずつ保存する */
 need();
 })();
