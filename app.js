@@ -227,7 +227,7 @@ arReset.onclick=()=>{if(!ar)return;S.arOff=0;hd=null;save();need();toast('方位
    Androidなどは、実際にセンサーの値が届いたときだけオンにする(PCではオンにならない) */
 function autoGyro(){if(!S.gyro)return;
  /* iPhone: 許可の確認は画面の操作の中でしか出せない。起動メッセージの最中でも、最初のタップですぐ求める */
- if(needPerm){const intro=$('intro');if(intro&&!intro.hidden)$('introHint').hidden=false;else toast('画面をタップすると、ジャイロ(向き連動)が始まります');
+ if(needPerm){/* 案内は出さない(最初のタップで静かに許可を求める) */
   const go=()=>{document.removeEventListener('click',go,true);document.removeEventListener('touchend',go,true);if(S.gyro&&!ar)startAR('tap')};
   document.addEventListener('click',go,true);document.addEventListener('touchend',go,true);return}
  if(!('DeviceOrientationEvent' in window))return;let pt;
