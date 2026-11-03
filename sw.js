@@ -1,5 +1,9 @@
-const V='hoshizora-v25',F=['./','index.html','style.css','app.js','data.js','myths.js','stars_extra.js','art.js','art/Cyg.webp','art/Ori.webp','art/Sco.webp','art/Cas.webp','art/UMa.webp','art/Leo.webp','art/Peg.webp','art/Lyr.webp','art/Aql.webp','art/Tau.webp','art/Gem.webp','art/CMa.webp','art/CMi.webp','art/Aur.webp','art/Vir.webp','art/Sgr.webp','art/Per.webp','art/And.webp','art/Her.webp','art/Oph.webp','art/Boo.webp','art/Cep.webp','art/Lib.webp','art/Cap.webp','art/Aqr.webp','art/Psc.webp','art/Ari.webp','art/Cet.webp','art/Cen.webp','art/Cru.webp','art/Cnc.webp','art/UMi.webp','art/CrB.webp','art/Del.webp','art/Sge.webp','art/Dra.webp','manifest.json','icon.png','icon-night.svg'];
-self.addEventListener('install',e=>e.waitUntil(caches.open(V).then(c=>c.addAll(F)).then(()=>self.skipWaiting())));
+const V='hoshizora-v27',CORE=['./','index.html','style.css','app.js','data.js','myths.js','stars_extra.js','art.js','manifest.json','icon.png','icon-192.png','apple-touch-icon.png'];
+/* 星座絵(オフラインでも表示するため全部保存する)。インストールは軽くして、起動後に1枚ずつ保存する */
+const ART=['Cyg','Ori','Sco','Cas','UMa','Leo','Peg','Lyr','Aql','Tau','Gem','CMa','CMi','Aur','Vir','Sgr','Per','And','Her','Oph','Boo','Cep','Lib','Cap','Aqr','Psc','Ari','Cet','Cen','Cru','Cnc','UMi','CrB','Del','Sge','Dra'].map(c=>'art/'+c+'.webp');
+self.addEventListener('install',e=>e.waitUntil(caches.open(V).then(c=>c.addAll(CORE)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==V).map(x=>caches.delete(x)))).then(()=>self.clients.claim())));
+self.addEventListener('message',e=>{if(e.data!=='art')return;
+ e.waitUntil(caches.open(V).then(async c=>{for(const u of ART){try{if(!(await c.match(u)))await c.add(u)}catch(x){}}}))});
 self.addEventListener('fetch',e=>{if(e.request.method!=='GET'||new URL(e.request.url).origin!==location.origin)return;
  e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(n=>{const c=n.clone();caches.open(V).then(x=>x.put(e.request,c));return n}).catch(()=>r)))});
