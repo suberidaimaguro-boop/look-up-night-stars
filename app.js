@@ -139,7 +139,8 @@ function drawArt(nk){artNk=nk;const cs=[artSel,sel&&sel.con],mode=S.art,jobs=[];
  if(jobs.length===1){const [m,img,al]=jobs[0];ctx.save();ctx.globalCompositeOperation='lighter';ctx.globalAlpha=al;ctx.transform(m[0],m[1],m[2],m[3],m[4],m[5]);ctx.drawImage(img,0,0,1,1);ctx.restore()}
  else if(jobs.length>1){/* 2枚以上のときは、半分の解像度の別の面にまとめて描いてから、1回だけ重ねる(絵はやわらかいので見た目はほぼ同じで、描く面積は約1/4) */
   const k=ctx.getTransform().a*0.5,lw=Math.max(1,Math.round(W*k)),lh=Math.max(1,Math.round(H*k));
-  if(lay.width!==lw||lay.height!==lh){lay.width=lw;lay.height=lh}else lctx.clearRect(0,0,lw,lh);
+  if(lay.width!==lw||lay.height!==lh){lay.width=lw;lay.height=lh}
+  lctx.setTransform(1,0,0,1,0,0);lctx.globalCompositeOperation='source-over';lctx.globalAlpha=1;lctx.clearRect(0,0,lay.width,lay.height);/* 拡大した状態のまま消すと一部しか消えず、前のコマの絵が重なって真っ白になる(v27の不具合)。必ず等倍に戻してから全面を消す */
   lctx.setTransform(k,0,0,k,0,0);lctx.globalCompositeOperation='lighter';
   for(const [m,img,al] of jobs){lctx.save();lctx.globalAlpha=al;lctx.transform(m[0],m[1],m[2],m[3],m[4],m[5]);lctx.drawImage(img,0,0,1,1);lctx.restore()}
   ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.globalCompositeOperation='lighter';ctx.globalAlpha=1;ctx.drawImage(lay,0,0,cv.width,cv.height);ctx.restore()}
