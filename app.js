@@ -118,7 +118,7 @@ function moon(x,y,R,el){const k=Math.cos(el),wax=Math.sin(el)>0;ctx.fillStyle='#
  ctx.fillStyle='#f4f0dc';ctx.beginPath();ctx.arc(x,y,R,-Math.PI/2,Math.PI/2,!wax);
  ctx.ellipse(x,y,Math.max(0.01,R*Math.abs(k)),R,0,Math.PI/2,-Math.PI/2,wax?k>0:k<0);ctx.fill()}
 /* ---------- 星座絵(絵の中の目印を、実際の星の位置に合わせて重ねる) ---------- */
-const ARTS=window.ART||{},artImg={},artA={};
+const ARTS=window.ART||{},artImg={},artA={};let artNk=1;
 function getArt(c){let o=artImg[c];if(!o){o=artImg[c]=new Image();o.onload=need;o.src=ARTS[c].src}return o.complete&&o.naturalWidth?o:null}
 function artFit(c){const o=ARTS[c],P=[],Q=[],Wt=[],fl=o.flip?-1:1;let vis=0;
  for(const [k,u,v,w] of o.a){const s=byKey[k];if(!s)continue;const p=proj(s.az,s.alt);if(!p)continue;if(s.v)vis++;P.push([u,fl*v]);Q.push(p);Wt.push(w||1)}
@@ -129,7 +129,7 @@ function artFit(c){const o=ARTS[c],P=[],Q=[],Wt=[],fl=o.flip?-1:1;let vis=0;
  const ar=nr/dn,ai=ni/dn,sc=Math.hypot(ar,ai);if(!(sc>20&&sc<8000))return null;
  return [ar,ai,-fl*ai,fl*ar,mq[0]-ar*mp[0]+ai*mp[1],mq[1]-ai*mp[0]-ar*mp[1]]}
 const lay=document.createElement('canvas'),lctx=lay.getContext('2d');
-function drawArt(nk){const cs=[artSel,sel&&sel.con],mode=S.art,jobs=[];let busy=false;
+function drawArt(nk){artNk=nk;const cs=[artSel,sel&&sel.con],mode=S.art,jobs=[];let busy=false;
  for(const c in ARTS){const t=mode==='off'?0:cs.includes(c)?1:mode==='all'?0.5:0;let cur=artA[c]||0;
   if(Math.abs(t-cur)>0.01){cur+=(t-cur)*0.2;busy=true}else cur=t;artA[c]=cur;
   if(cur<0.02||nk<0.02)continue;const m=artFit(c);if(!m)continue;
@@ -176,15 +176,19 @@ cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);ptrs.set
 const pd=()=>{const [a,b]=[...ptrs.values()];return Math.hypot(a[0]-b[0],a[1]-b[1])};
 cv.addEventListener('pointermove',e=>{const o=ptrs.get(e.pointerId);if(!o)return;const dx=e.clientX-o[0],dy=e.clientY-o[1];ptrs.set(e.pointerId,[e.clientX,e.clientY]);
  if(ptrs.size===2){const d=pd();if(pinch)S.fov=clamp(S.fov*pinch/d,20,160);pinch=d;down&&(down.moved=true)}
- else{if(Math.hypot(e.clientX-down.x,e.clientY-down.y)>6)down.moved=true;const sc=S.fov/Math.min(W,H)*0.9;
+ else{if(Math.hypot(e.clientX-down.x,e.clientY-down.y)>(e.pointerType==='touch'?12:6))down.moved=true;/* 指は少し動くので、タップと見なす範囲を広げる */const sc=S.fov/Math.min(W,H)*0.9;
   if(ar){S.arOff-=dx*sc}else{S.az=((S.az-dx*sc)%360+360)%360;S.alt=clamp(S.alt+dy*sc,-10,90)}}need()});
-const up=e=>{ptrs.delete(e.pointerId);pinch=0;if(down&&!down.moved&&ptrs.size===0&&performance.now()-down.t<500)pick(e.clientX,e.clientY);if(!ptrs.size){down=null;save()}};
+const up=e=>{ptrs.delete(e.pointerId);pinch=0;if(down&&!down.moved&&ptrs.size===0&&performance.now()-down.t<700)pick(e.clientX,e.clientY);if(!ptrs.size){down=null;save()}};
 cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
 cv.addEventListener('wheel',e=>{e.preventDefault();S.fov=clamp(S.fov*Math.exp(e.deltaY*0.001),20,160);need()},{passive:false});
-function pick(x,y){let b=null,bd=22;for(const h of hits){const d=Math.hypot(h.x-x,h.y-y);if(d<bd||(d<bd+4&&b&&h.s.mag<b.mag-1)){bd=d;b=h.s}}const lt=conLabelAt(x,y,1);if(lt)tapCon(lt);else if(b)showCard(b);else{const lc=conLabelAt(x,y);if(lc)tapCon(lc);else if(!$('card').hidden){$('card').hidden=true;sel=null;need()}else setImmersive(!isImm())}}
+function pick(x,y){const lt=conLabelAt(x,y,1),lc=lt||conLabelAt(x,y);/* 星座名の近くでは、星の判定を狭くして星座名を優先する(指で押す位置はずれやすい) */let b=null,bd=lc?12:22;for(const h of hits){const d=Math.hypot(h.x-x,h.y-y);if(d<bd||(d<bd+4&&b&&h.s.mag<b.mag-1)){bd=d;b=h.s}}
+ if(lt)tapCon(lt);else if(b)showCard(b);else if(lc)tapCon(lc);else if($('card').hidden===false){$('card').hidden=true;sel=null;need()}else setImmersive(!isImm())}
 /* 星座名のタップ: 絵と神話を出す。同じ星座名をもう一度タップすると消す */
-function conLabelAt(x,y,tight){let r=null,bd=1e9;for(const h of conHits){if(tight?(Math.abs(x-h.x)<=h.w/2+4&&y>=h.y-15&&y<=h.y+5):(Math.abs(x-h.x)<=h.w/2+14&&y>=h.y-24&&y<=h.y+12)){const d=Math.abs(x-h.x)+Math.abs(y-h.y);if(d<bd){bd=d;r=h.c}}}return r}
-function tapCon(c){if(artSel===c){artSel=null;if(selCon===c)hideMyth();need()}else showMyth(c)}
+function conLabelAt(x,y,tight){let r=null,bd=1e9;for(const h of conHits){/* 押せる範囲は、文字の大きさより広く(縦およそ50px)。tight=文字のすぐ近く */if(tight?(Math.abs(x-h.x)<=h.w/2+10&&y>=h.y-18&&y<=h.y+14):(Math.abs(x-h.x)<=h.w/2+24&&y>=h.y-32&&y<=h.y+28)){const d=Math.hypot(x-h.x,y-h.y);if(d<bd){bd=d;r=h.c}}}return r}
+function tapCon(c){if(artSel===c){artSel=null;if(selCon===c)hideMyth();need()}else{showMyth(c);artNote(c)}}
+/* 絵が出ない理由を、タップしたときに伝える(出ない=壊れている、と誤解しないように) */
+function artNote(c){if(!ARTS[c])return toast('この星座の絵は、まだありません');if(S.art==='off')return toast('星座絵が「表示しない」になっています(設定で変更できます)');
+ if(artNk<0.5)return toast('星座の絵は、暗い夜にだけ出ます(いまは空が明るい時間です)');if(!artFit(c))toast('いまは、絵を合わせる星の多くが地平線の下にあるため、絵が出ません')}
 
 /* ---------- 時刻・場所 ---------- */
 const p2=n=>String(n).padStart(2,'0');
