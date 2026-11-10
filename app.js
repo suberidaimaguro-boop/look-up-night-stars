@@ -186,7 +186,7 @@ function pick(x,y){const lt=conLabelAt(x,y,1),lc=lt||conLabelAt(x,y);/* 星座�
  if(lt)tapCon(lt);else if(b)showCard(b);else if(lc)tapCon(lc);else if($('card').hidden===false){$('card').hidden=true;sel=null;need()}else setImmersive(!isImm())}
 /* 星座名のタップ: 絵と神話を出す。同じ星座名をもう一度タップすると消す */
 function conLabelAt(x,y,tight){let r=null,bd=1e9;for(const h of conHits){/* 押せる範囲は、文字の大きさより広く(縦およそ50px)。tight=文字のすぐ近く */if(tight?(Math.abs(x-h.x)<=h.w/2+10&&y>=h.y-18&&y<=h.y+14):(Math.abs(x-h.x)<=h.w/2+24&&y>=h.y-32&&y<=h.y+28)){const d=Math.hypot(x-h.x,y-h.y);if(d<bd){bd=d;r=h.c}}}return r}
-function tapCon(c){if(artSel===c){artSel=null;if(selCon===c)hideMyth();need()}else{showMyth(c);artNote(c)}}
+function tapCon(c){if(artSel===c){artSel=null;if(selCon===c)hideMyth();need()}else{showMyth(c);lookAt(c,true);artNote(c)}/* 一覧から選んだときと同じく、タップでも星座をカードの上の見える範囲の中央へ動かす。ただし拡大率は変えず、向きだけを動かす(keepFov=true) */}
 /* 絵が出ない理由を、タップしたときに伝える(出ない=壊れている、と誤解しないように) */
 function artNote(c){if(!ARTS[c])return toast('この星座の絵は、まだありません');if(S.art==='off')return toast('星座絵が「表示しない」になっています(設定で変更できます)');
  if(artNk<0.5)return toast('星座の絵は、暗い夜にだけ出ます(いまは空が明るい時間です)');if(!artFit(c))toast('いまは、絵を合わせる星の多くが地平線の下にあるため、絵が出ません')}
@@ -283,16 +283,19 @@ function conState(c){const a=conAt(c,T);if(a.alt<3)return {k:'below',a};return {
 function stateText(st){return st.k==='up'?`いま見えています(${dirName(st.a.az)}の空・高度${Math.round(st.a.alt)}°ごろ)`:st.k==='bright'?'いまは空が明るく、星は見えにくい時間です':'いまは地平線の下にあります'}
 function findVisible(c){for(const thr of [20,8])for(let k=1;k<=366*48;k++){const t=T+k*18e5;if(sunAltAt(t)>-12)continue;let ba=conAt(c,t).alt;if(ba<thr)continue;
   let best=t;for(let j=1;j<=16;j++){const u=t+j*9e5;if(sunAltAt(u)>-12)break;const a=conAt(c,u).alt;if(a>ba){ba=a;best=u}}return best}return null}
-function lookAt(c){stopAR(false);const a=conAt(c,T);S.az=(a.az+360)%360;S.fov=clamp(geo(c).rad*2.6,45,120);setView();
- /* 神話カードが画面の下側をおおうので、星座が見える上側の中央にくるよう視線を下げる */
+function lookAt(c,keepFov){stopAR(false);const a=conAt(c,T);S.az=(a.az+360)%360;if(!keepFov)S.fov=clamp(geo(c).rad*2.6,45,120);setView();
+ /* 神話カードがおおう範囲を除いた「見える範囲」の中央に星座がくるよう視線をずらす */
  const m=$('myth'),side=!m.hidden&&matchMedia('(orientation:landscape) and (max-height:520px)').matches;
  if(side){/* 横向き: カードが左側にあるので、星座が右側の中央にくるよう視線を左へ回す */
   const dx=m.getBoundingClientRect().right/2/V.s/D,al=Math.max(a.alt,12);S.alt=clamp(al,-10,90);S.az=((a.az-dx/Math.max(0.3,Math.cos(al*D)))%360+360)%360}
- else{const sh=m.hidden?0:m.offsetHeight/2/V.s/D;S.alt=clamp(Math.max(a.alt,12)-sh,-10,90)}
+ else{/* 縦向き: カードの上端から画面上端までの中央。ずらす量はカードの高さだけでなく、カードの下の余白(54px+セーフエリア)も含めて実測する */
+  const shiftPx=m.hidden?0:Math.max(0,(innerHeight-m.getBoundingClientRect().top)/2),sh=shiftPx/V.s/D;S.alt=clamp(Math.max(a.alt,12)-sh,-10,90)}
  save();need()}
 function refreshMyth(){if(!selCon)return;const st=conState(selCon),t=stateText(st);if($('mState').textContent!==t)$('mState').textContent=t;$('mWhen').hidden=st.k==='up'}
+/* 神話カードの開閉: 最初は折りたたみ(星座名・方角と高度の1行・ボタンだけ)。神話の文章は「神話を読む」を押したときだけ開く */
+function setMythExpanded(on){const box=$('myth');box.classList.toggle('collapsed',!on);$('mMore').hidden=!on;$('mRead').setAttribute('aria-expanded',String(on));$('mRead').textContent=on?'神話を閉じる':'神話を読む'}
 function showMyth(c){selCon=c;artSel=c;$('mName').textContent=CONS[c][0];$('mSub').textContent=(MODERN.has(c)?'近世にできた星座の由来':'星座にまつわる神話')+'(略号 '+c+')';
- $('mText').textContent=MYTH[c];$('mState').textContent='';refreshMyth();const box=$('myth');box.hidden=false;box.scrollTop=0;need()}
+ $('mText').textContent=MYTH[c];$('mState').textContent='';refreshMyth();const box=$('myth');box.hidden=false;setMythExpanded(false);box.scrollTop=0;need()}
 function hideMyth(){selCon=null;$('myth').hidden=true;need()}
 function renderList(){const q=$('conQ').value.trim().toLowerCase(),ul=$('conUl');
  let items=Object.keys(CONS).filter(c=>MYTH[c]).map(c=>({c,name:CONS[c][0],st:conState(c)}));const total=items.length;
@@ -311,6 +314,7 @@ $('conQ').oninput=renderList;
 $('conFilters').onclick=e=>{const b=e.target.closest('button[data-f]');if(!b)return;conFilter=b.dataset.f;for(const x of $('conFilters').children)x.setAttribute('aria-pressed',x===b);renderList()};
 $('conUl').onclick=e=>{const b=e.target.closest('button[data-c]');if(!b)return;const c=b.dataset.c;closeList();showMyth(c);lookAt(c);
  const st=conState(c);if(st.k!=='up')toast(st.k==='below'?'いまは地平線の下です。「見える日時にする」で時刻を合わせられます':'いまは空が明るい時間です。「見える日時にする」で夜に合わせられます')};
+$('mRead').onclick=()=>{const on=$('mMore').hidden;setMythExpanded(on);if(on)$('myth').scrollTop=0;if(selCon)lookAt(selCon,true)};/* 開閉でカードの高さが変わるので、拡大率は変えずに、星座が新しい見える範囲の中央へ来るよう向きだけ合わせ直す */
 $('mLook').onclick=()=>{if(selCon)lookAt(selCon)};
 $('mWhen').onclick=()=>{if(!selCon)return;const t=findVisible(selCon);if(t==null)return toast('この場所では、1年を通してほとんど見えない星座です');
  T=t;baseT=t;$('dayShift').value=0;syncTime();lookAt(selCon);const d=new Date(t);toast(`${d.getMonth()+1}月${d.getDate()}日 ${p2(d.getHours())}:${p2(d.getMinutes())}ごろの空に合わせました`)};

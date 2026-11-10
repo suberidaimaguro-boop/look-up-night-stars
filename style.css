@@ -25,6 +25,10 @@ button{cursor:pointer}button:active,button[aria-pressed=true]{background:var(--a
 #mText{font-size:14px;line-height:1.75;margin:8px 0!important}#mState{color:var(--acc);font-size:13px}
 #mythClose{position:absolute;right:6px;top:6px;border:0;background:none;font-size:22px;min-height:0}
 .mbtns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+/* 折りたたみ時(v30): 星座名・見える方角と高度の1行・ボタンだけにする。高さは展開時(最大46vh)の約1/3 */
+#myth.collapsed{max-height:none;overflow:visible}
+#myth.collapsed .mbtns{margin-bottom:0}
+#mMore .mbtns{margin-bottom:0}
 #conSheet{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;flex-direction:column;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 10px) 12px calc(env(safe-area-inset-bottom,0px) + 10px)}
 .sheetHead{display:flex;justify-content:space-between;align-items:center}.sheetHead h2{margin:0;font-size:18px}
 #conSheetClose{border:0;background:none;font-size:26px;min-height:40px;min-width:40px}
@@ -36,6 +40,8 @@ button{cursor:pointer}button:active,button[aria-pressed=true]{background:var(--a
 #conUl button:active .cm{color:#1a1405}#conUl .empty{color:var(--dim);grid-column:1/-1;padding:12px 4px}
 @media (orientation:landscape) and (max-height:520px){
 #myth{top:calc(env(safe-area-inset-top,0px) + 96px);bottom:calc(env(safe-area-inset-bottom,0px) + 54px);right:auto;width:min(46vw,420px);max-height:none}
+/* 横向きでも折りたたみ時は下まで伸ばさず、内容の高さだけにする */
+#myth.collapsed{bottom:auto;max-height:calc(100vh - 150px)}
 }
 /* 没入モード */
 #bar,#panel{transition:opacity .4s ease,visibility 0s}

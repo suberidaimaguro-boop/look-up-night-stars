@@ -1,4 +1,4 @@
-const V='hoshizora-v29',CORE=['./','index.html','style.css','app.js','data.js','myths.js','stars_extra.js','art.js','manifest.json','icon.png','icon-192.png','apple-touch-icon.png'];
+const V='hoshizora-v30',CORE=['./','index.html','style.css','app.js','data.js','myths.js','stars_extra.js','art.js','manifest.json','icon.png','icon-192.png','apple-touch-icon.png'];
 /* 星座絵(オフラインでも表示するため全部保存する)。インストールは軽くして、起動後に1枚ずつ保存する */
 const ART=['Cyg','Ori','Sco','Cas','UMa','Leo','Peg','Lyr','Aql','Tau','Gem','CMa','CMi','Aur','Vir','Sgr','Per','And','Her','Oph','Boo','Cep','Lib','Cap','Aqr','Psc','Ari','Cet','Cen','Cru','Cnc','UMi','CrB','Del','Sge','Dra'].map(c=>'art/'+c+'.webp');
 self.addEventListener('install',e=>e.waitUntil(caches.open(V).then(c=>c.addAll(CORE)).then(()=>self.skipWaiting())));

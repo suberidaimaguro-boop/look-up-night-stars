@@ -17,13 +17,17 @@
 <button id="arReset" type="button" hidden aria-label="方位をセンサーの向きに戻す">方位リセット</button>
 <div id="intro" hidden role="status" aria-label="カーテンを閉めたままでも、シャッターを閉めたままでも、いつでも星を見ることができます。"><i class="il"></i><div class="txt" aria-hidden="true"></div><i class="il"></i><button id="introOff" type="button">次回から表示しない</button></div>
 <button id="uiShow" type="button" hidden aria-label="操作画面を表示"></button>
-<section id="myth" hidden aria-label="星座の神話">
+<section id="myth" class="collapsed" hidden aria-label="星座の神話">
  <button id="mythClose" aria-label="神話カードを閉じる">×</button>
- <h2 id="mName"></h2><p id="mSub"></p>
- <p id="mText"></p>
+ <h2 id="mName"></h2>
  <p id="mState"></p>
- <div class="mbtns"><button id="mLook" type="button">空でその星座を見る</button><button id="mWhen" type="button" hidden>見える日時にする</button></div>
- <p class="small">神話や伝承には、いくつもの説があります。</p>
+ <div class="mbtns"><button id="mRead" type="button" aria-expanded="false" aria-controls="mMore">神話を読む</button><button id="mWhen" type="button" hidden>見える日時にする</button></div>
+ <div id="mMore" hidden>
+  <p id="mSub"></p>
+  <p id="mText"></p>
+  <div class="mbtns"><button id="mLook" type="button">空でその星座を見る</button></div>
+  <p class="small">神話や伝承には、いくつもの説があります。</p>
+ </div>
 </section>
 <section id="conSheet" role="dialog" aria-modal="true" aria-labelledby="conTitle" hidden>
  <div class="sheetHead"><h2 id="conTitle">星座の一覧と神話</h2><button id="conSheetClose" type="button" aria-label="一覧を閉じる">×</button></div>
